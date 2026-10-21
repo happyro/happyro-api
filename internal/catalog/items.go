@@ -47,7 +47,7 @@ func itemView(id int64, client, server Object, clientVersion, serverVersion stri
 		primary = server
 	}
 	payload["names"] = primary["names"]
-	payload["AegisName"], payload["Type"], payload["SubType"] = nullableText(server["AegisName"]), nullableText(server["Type"]), subtype(server)
+	payload["AegisName"], payload["Type"], payload["SubType"] = nullableText(server["AegisName"]), canonicalItemType(server["Type"]), subtype(server)
 	payload["resourceName"] = nullableText(client["identifiedResourceName"])
 	payload["description"] = description(client["identifiedDescriptionName"])
 	sources := Object{"names": "server"}
@@ -149,4 +149,15 @@ func npcView(source Object) Object {
 		row["name_zh_cn"] = row["display_name"]
 	}
 	return row
+}
+
+// rAthena accepts item type names without regard to case. Publish one spelling
+// so filtering, presentation and reward restrictions share the same enum.
+func canonicalItemType(value any) any {
+	for _, kind := range []string{"Healing", "Usable", "Etc", "Armor", "Weapon", "Card", "PetEgg", "PetArmor", "Ammo", "DelayConsume", "ShadowGear", "Cash", "None"} {
+		if strings.EqualFold(text(value), kind) {
+			return kind
+		}
+	}
+	return nullableText(value)
 }

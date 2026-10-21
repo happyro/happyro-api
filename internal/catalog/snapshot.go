@@ -189,6 +189,6 @@ func (JSONReader) Read(paths Paths) (Bundle, error) {
 	return bundle, nil
 }
 func (b Bundle) Hash() string {
-	sum := sha256.Sum256([]byte("catalog-projection/v1:" + b.Client.Hash + ":" + b.Server.Hash + ":" + b.Monsters.Hash + ":" + b.NPCs.Hash))
+	sum := sha256.Sum256([]byte("catalog-projection/v2:" + b.Client.Hash + ":" + b.Server.Hash + ":" + b.Monsters.Hash + ":" + b.NPCs.Hash))
 	return hex.EncodeToString(sum[:])
 }
