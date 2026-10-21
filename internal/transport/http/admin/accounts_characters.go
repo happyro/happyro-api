@@ -36,7 +36,15 @@ func (s *Handler) characters(c *gin.Context) {
 	if !ok {
 		return
 	}
-	page, err := s.Characters.Characters(c.Request.Context(), charactersapi.Query{Username: c.Query("username"), Name: c.Query("name"), Pagination: pagination})
+	var filters struct {
+		Search     string `form:"query"`
+		OnlineOnly bool   `form:"onlineOnly"`
+	}
+	if err := c.ShouldBindQuery(&filters); err != nil {
+		s.playerError(c, charactersapi.ErrFilter)
+		return
+	}
+	page, err := s.Characters.Characters(c.Request.Context(), charactersapi.Query{Search: filters.Search, OnlineOnly: filters.OnlineOnly, Username: c.Query("username"), Name: c.Query("name"), Pagination: pagination})
 	if err != nil {
 		s.playerError(c, err)
 		return
