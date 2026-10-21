@@ -1,0 +1,26 @@
+{
+  "source": "happyro-client/src/UI/Components/GameTools/MapCatalogData.js",
+  "common": [
+    "prontera",
+    "prt_fild08",
+    "izlude",
+    "geffen",
+    "payon",
+    "morocc",
+    "alberta",
+    "aldebaran",
+    "yuno",
+    "lighthalzen",
+    "einbroch",
+    "hugel",
+    "rachel",
+    "veins",
+    "comodo",
+    "umbala",
+    "amatsu",
+    "gonryun",
+    "louyang",
+    "ayothaya",
+    "moc_para01"
+  ]
+}
