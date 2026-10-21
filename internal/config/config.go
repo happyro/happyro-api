@@ -55,10 +55,8 @@ type Config struct {
 	GameAdminGroups        []int         `env:"GAME_ADMIN_GROUP_IDS" envDefault:"2,3,4,10,99" envSeparator:","`
 	ItemImageRoot          string        `env:"GAME_ITEM_IMAGE_ROOT"`
 	MonsterImageRoot       string        `env:"GAME_MONSTER_IMAGE_ROOT"`
-	ResourceRoot           string        `env:"GAME_RESOURCE_ROOT"`
 	MapIndexPath           string        `env:"GAME_MAP_INDEX_PATH" envDefault:"../happyro-server/db/map_index.txt"`
 	WorldAssetRoot         string        `env:"GAME_WORLD_ASSET_ROOT" envDefault:"resources/game-data/world"`
-	NPCCatalogPath         string        `env:"GAME_NPC_CATALOG_PATH" envDefault:"resources/game-data/world/npc-catalog.json"`
 	BattleConfigPath       string        `env:"GAME_SERVER_BATTLE_CONFIG_PATH"`
 }
 
