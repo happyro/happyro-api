@@ -12,7 +12,7 @@ import (
 
 type SQLWriter struct{ DB *sqlx.DB }
 
-const accountProjection = "account_id,userid AS username,email,sex,group_id,state,CAST(lastlogin AS CHAR) AS lastlogin,last_ip"
+const accountProjection = "account_id,userid AS username,email,sex,group_id,state,DATE_FORMAT(lastlogin,'%Y-%m-%dT%H:%i:%s.%fZ') AS lastlogin,last_ip"
 
 func (r *SQLWriter) account(ctx context.Context, id int64) (database.Row, error) {
 	rows, err := database.Rows(ctx, r.DB, "SELECT "+accountProjection+" FROM login WHERE account_id=?", id)

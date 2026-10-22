@@ -98,7 +98,7 @@ type RecordHistory interface {
 }
 
 func (r *SQLRecords) History(ctx context.Context, p database.Pagination) (audit.History, error) {
-	page, err := database.Paginate(ctx, r.DB, "g.id,g.idempotency_key,g.item_id,g.char_id,g.amount,g.title,g.status,g.mail_id,g.error,g.requested_by,CAST(g.created_at AS CHAR) AS created_at,CAST(g.updated_at AS CHAR) AS updated_at,u.name AS actor_name,u.username AS actor_username", "mail_grants g LEFT JOIN users u ON u.id=g.requested_by", "", "g.id DESC", nil, p)
+	page, err := database.Paginate(ctx, r.DB, "g.id,g.idempotency_key,g.item_id,g.char_id,g.amount,g.title,g.status,g.mail_id,g.error,g.requested_by,DATE_FORMAT(g.created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS created_at,DATE_FORMAT(g.updated_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS updated_at,u.name AS actor_name,u.username AS actor_username", "mail_grants g LEFT JOIN users u ON u.id=g.requested_by", "", "g.id DESC", nil, p)
 	if err != nil {
 		return audit.History{}, err
 	}

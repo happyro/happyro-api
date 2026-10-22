@@ -32,7 +32,7 @@ func (r *SQLReader) Accounts(ctx context.Context, q AccountQuery) (database.Page
 	} else if q.State == "1" {
 		where += " AND state>0"
 	}
-	return database.Paginate(ctx, r.Game, "account_id,userid AS username,email,sex,group_id,state,CAST(lastlogin AS CHAR) AS lastlogin,last_ip", "login", where, "account_id DESC", args, q.Pagination)
+	return database.Paginate(ctx, r.Game, "account_id,userid AS username,email,sex,group_id,state,DATE_FORMAT(lastlogin,'%Y-%m-%dT%H:%i:%s.%fZ') AS lastlogin,last_ip", "login", where, "account_id DESC", args, q.Pagination)
 }
 
 func (r *SQLReader) LoginLogs(ctx context.Context, q LoginLogQuery) (database.Page, error) {
@@ -42,5 +42,5 @@ func (r *SQLReader) LoginLogs(ctx context.Context, q LoginLogQuery) (database.Pa
 		where = " WHERE `user` LIKE ? ESCAPE '!'"
 		args = append(args, search(q.Username))
 	}
-	return database.Paginate(ctx, r.Log, "CAST(time AS CHAR) AS time,ip,`user` AS username,rcode,log", "loginlog", where, "time DESC", args, q.Pagination)
+	return database.Paginate(ctx, r.Log, "DATE_FORMAT(time,'%Y-%m-%dT%H:%i:%s.%fZ') AS time,ip,`user` AS username,rcode,log", "loginlog", where, "time DESC", args, q.Pagination)
 }

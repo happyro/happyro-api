@@ -29,7 +29,7 @@ func TestEveryBusinessRouteEnforcesItsIdentityBoundary(t *testing.T) {
 	privileged.login(t)
 	count := 0
 	for _, route := range anonymous.handler.(*gin.Engine).Routes() {
-		if !strings.HasPrefix(route.Path, "/api/") || route.Path == "/api/health" || strings.HasPrefix(route.Path, "/api/auth/") {
+		if !strings.HasPrefix(route.Path, "/api/") || route.Path == "/api/health" || route.Path == "/api/public-config" || strings.HasPrefix(route.Path, "/api/auth/") {
 			continue
 		}
 		count++

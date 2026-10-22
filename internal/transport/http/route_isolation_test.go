@@ -36,7 +36,7 @@ func TestPlayerAPIAndHealthDoNotLoadAdministratorSessions(t *testing.T) {
 		s.GameAuth = &sessionauth.GameAuthentication{Repository: gameIdentity{}, AdminGroups: []int{99}}
 		s.PlayerAccess = &sessionauth.PlayerAccess{Gateway: &adventureGateway{policy: 2}}
 	})
-	for _, path := range []string{"/", "/api/health", "/api/adventure-tools/bootstrap", "/api/missing"} {
+	for _, path := range []string{"/", "/api/health", "/api/public-config", "/api/adventure-tools/bootstrap", "/api/missing"} {
 		r := httptest.NewRequest(http.MethodGet, path, nil)
 		r.AddCookie(&http.Cookie{Name: "happyro_admin_session", Value: "stale-admin-session"})
 		r.Header.Set("X-HappyRO-Account-ID", "2000000")

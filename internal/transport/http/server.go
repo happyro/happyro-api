@@ -66,6 +66,9 @@ func (s *Server) Handler() (http.Handler, error) {
 	}
 	router.Use(s.observe, s.protect)
 	router.GET("/api/health", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok", "service": "happyro-api"}) })
+	router.GET("/api/public-config", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"timeZone": s.Config.TimeZone})
+	})
 	playerModule.Register(router)
 	// Administrator sessions and CSRF apply only to the administrator API.
 	admin := gin.New()
