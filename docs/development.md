@@ -7,8 +7,8 @@ Go 应用位于独立的 happyro-api 仓库，依赖版本以 `go.mod` 和 `go.s
 ```bash
 go mod download
 go test -mod=readonly ./...
-go build -mod=readonly -o /usr/local/bin/happyro-api ./cmd/happyro-api
-happyro-api --help
+go build -mod=readonly -o bin/happyro-api ./cmd/happyro-api
+./bin/happyro-api --help
 ```
 
 PHP 应用代码、Composer 依赖和 Laravel 启动入口已移除；后端由 Go 程序提供。原本机环境文件和存储数据不自动删除，部署前须按 Go 环境模板配置新的管理库。
