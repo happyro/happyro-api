@@ -75,6 +75,16 @@ func (s *Service) apply(ctx context.Context, input Update, actor gameapi.Actor, 
 	if err = Validate(input.Changes, actor.GameAccountID != nil); err != nil {
 		return result, err
 	}
+	state, stateErr := s.Gateway.SettingsState(ctx)
+	if stateErr != nil {
+		return result, stateErr
+	}
+	for key := range input.Changes {
+		if name, locked := state.EnvironmentOverrides[key]; locked {
+			return result, &gameapi.ValidationError{Field: key, Message: fmt.Sprintf("该设置由环境变量 %s 管理，请修改部署配置并重启地图服；清空该变量后可由后台管理。", name)}
+		}
+	}
+
 	raw, err := json.Marshal(struct {
 		Changes map[string]int64
 		Actor   gameapi.Actor
