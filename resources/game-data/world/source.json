@@ -1,0 +1,11 @@
+{
+  "clientVersion": "kro-20211105",
+  "mapSource": "work/grf-extract/kro-20211105/data/data/texture/유저인터페이스/map/*.bmp",
+  "npcSpriteSource": "work/grf-extract/kro-20211105/data/data/sprite/npc/*.spr",
+  "npcMappingSource": "repos/happyro-client/src/DB/Monsters/MonsterTable.js",
+  "mapNameSource": "work/translation-release/client-server/canonical-20260825-01/merged/files/client/src/DB/Map/MapTable.js",
+  "npcNameSource": "repos/happyro-client/src/DB/*NpcNameTable*.js",
+  "mapImageCount": 537,
+  "excludedMapPlaceholderCount": 318,
+  "npcImageCount": 1453
+}
