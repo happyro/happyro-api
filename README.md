@@ -2,7 +2,7 @@
 
 HappyRO 的 Go 后端，为管理后台和游戏内冒险工具提供 HTTP API。后台与玩家入口使用独立的认证和权限校验，共用业务服务，以一个程序部署。
 
-源码仓库：[happyro/happyro-api](https://github.com/happyro/happyro-api)。本仓库随 HappyRO 统一版本交付，Go 重写尚未正式发布。
+源码仓库：[happyro/happyro-api](https://github.com/happyro/happyro-api)。本仓库随 HappyRO 统一版本交付。
 
 ## 职责与边界
 
@@ -31,7 +31,7 @@ go build -mod=readonly -o bin/happyro-api ./cmd/happyro-api
 
 程序不自动加载 `.env`。根据 [.env.example](.env.example) 配置管理库、游戏库、Game Control 与资源路径，由启动环境显式传入变量；Linux 可使用 systemd 的 `EnvironmentFile`。直接运行程序不带参数只显示帮助。
 
-首次运行须准备全新的管理库，按顺序执行 `migrate`、`init`、`catalog import`，完成后使用 `serve` 启动 HTTP 服务。命令参数、数据库权限和部署步骤见[部署说明](docs/deployment.md)，不要直接在旧 PHP 管理库上执行迁移。
+首次运行须准备全新的管理库，按顺序执行 `migrate`、`init`、`catalog import`，完成后使用 `serve` 启动 HTTP 服务。命令参数、数据库权限和部署步骤见[部署说明](docs/deployment.md)。
 
 | 配置 | 用途 |
 | --- | --- |
