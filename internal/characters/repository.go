@@ -31,6 +31,13 @@ func (r *SQLReader) Characters(ctx context.Context, q Query) (database.Page, err
 		filters = append(filters, "c.name LIKE ? ESCAPE '!'")
 		args = append(args, search(q.Name))
 	}
+	if q.Search != "" {
+		filters = append(filters, "(a.userid LIKE ? ESCAPE '!' OR c.name LIKE ? ESCAPE '!')")
+		args = append(args, search(q.Search), search(q.Search))
+	}
+	if q.OnlineOnly {
+		filters = append(filters, "c.online=1")
+	}
 	where := ""
 	if len(filters) > 0 {
 		where = " WHERE " + strings.Join(filters, " AND ")

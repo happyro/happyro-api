@@ -24,7 +24,7 @@ func (*queryReader) Character(context.Context, int64) (database.Row, error) { re
 func TestCharacterFilters(t *testing.T) {
 	reader := &queryReader{}
 	service := &Service{Reader: reader}
-	query := Query{Username: "owner", Name: "测试_角色%", Pagination: database.Pagination{Page: 1, Size: 20}}
+	query := Query{Search: "target", OnlineOnly: true, Username: "owner", Name: "测试_角色%", Pagination: database.Pagination{Page: 1, Size: 20}}
 	if _, err := service.Characters(context.Background(), query); err != nil {
 		t.Fatal(err)
 	}
@@ -39,5 +39,19 @@ func TestCharacterFilters(t *testing.T) {
 	}
 	if reader.calls != 1 {
 		t.Fatal("invalid filters reached the repository")
+	}
+}
+
+func TestCharacterSearchRejectsInvalidText(t *testing.T) {
+	reader := &queryReader{}
+	service := &Service{Reader: reader}
+	for _, text := range []string{strings.Repeat("x", 257), string([]byte{0xff})} {
+		_, err := service.Characters(context.Background(), Query{Search: text, Pagination: database.Pagination{Page: 1, Size: 20}})
+		if !errors.Is(err, ErrFilter) {
+			t.Fatalf("invalid search accepted: %v", err)
+		}
+	}
+	if reader.calls != 0 {
+		t.Fatal("invalid search reached repository")
 	}
 }

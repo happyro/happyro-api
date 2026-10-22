@@ -12,6 +12,8 @@ var ErrNotFound = errors.New("角色不存在。")
 var ErrFilter = errors.New("查询参数无效。")
 
 type Query struct {
+	Search     string
+	OnlineOnly bool
 	Username   string
 	Name       string
 	Pagination database.Pagination
@@ -29,7 +31,7 @@ type Service struct {
 
 func validFilter(value string) bool { return len(value) <= 256 && utf8.ValidString(value) }
 func (s *Service) Characters(ctx context.Context, q Query) (database.Page, error) {
-	if !q.Pagination.Valid() || !validFilter(q.Username) || !validFilter(q.Name) {
+	if !q.Pagination.Valid() || !validFilter(q.Username) || !validFilter(q.Name) || !validFilter(q.Search) {
 		return database.Page{}, ErrFilter
 	}
 	return s.Reader.Characters(ctx, q)
