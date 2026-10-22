@@ -24,7 +24,8 @@ type adventureCatalog struct {
 
 func (r *adventureCatalog) Items(_ context.Context, q catalog.ItemQuery) (catalog.Page, error) {
 	r.items = q
-	return catalog.Page{Data: []catalog.Object{{"Id": int64(501), "Type": "PetEgg"}}, Total: 1}, nil
+	subtypes := []string{"Dagger", "Sword"}
+	return catalog.Page{Data: []catalog.Object{{"Id": int64(501), "Type": "PetEgg"}}, Total: 1, Subtypes: &subtypes}, nil
 }
 func (r *adventureCatalog) Item(_ context.Context, id int64, scope string) (catalog.Object, error) {
 	r.items.Range = scope
@@ -75,6 +76,9 @@ func TestAdventureCatalogEnforcesGameScopeAndAuthenticatedAssets(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), `"grantable":false`) || !strings.Contains(w.Body.String(), `"icon":"/api/adventure-tools/items/501/icon"`) {
 		t.Fatal(w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), `"subtypes":["Dagger","Sword"]`) {
+		t.Fatalf("item subtype filters missing from response: %s", w.Body.String())
 	}
 	expectStatus(t, get("/api/adventure-tools/items?perPage=51", true), 422)
 	expectStatus(t, get("/api/adventure-tools/items/501?range=server", true), 200)

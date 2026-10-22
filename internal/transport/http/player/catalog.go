@@ -50,7 +50,7 @@ func (s *Handler) items(c *gin.Context) {
 	for _, row := range page.Data {
 		itemAssets(row)
 	}
-	c.JSON(200, gin.H{"data": page.Data, "total": page.Total})
+	c.JSON(200, page)
 }
 func (s *Handler) item(c *gin.Context) {
 	id, ok := s.CatalogID(c, "itemId")
