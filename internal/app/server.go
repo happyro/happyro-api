@@ -114,6 +114,27 @@ func Serve(ctx context.Context, cfg config.Config, db *sqlx.DB) error {
 		return err
 	}
 	server := &http.Server{Addr: cfg.Listen, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10}
+	recoveryCtx, stopRecovery := context.WithCancel(ctx)
+	recoveryDone := make(chan struct{})
+	go func() {
+		defer close(recoveryDone)
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for {
+			attempt, cancel := context.WithTimeout(recoveryCtx, 5*time.Second)
+			err := settingsService.RecoverPending(attempt)
+			cancel()
+			if err != nil && recoveryCtx.Err() == nil {
+				logger.Warn("automatic settings recovery pending", zap.Error(err))
+			}
+			select {
+			case <-recoveryCtx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
+	defer func() { stopRecovery(); <-recoveryDone }()
 	stopped := make(chan error, 1)
 	go func() { stopped <- server.ListenAndServe() }()
 	logger.Info("HTTP server started", zap.String("address", cfg.Listen))

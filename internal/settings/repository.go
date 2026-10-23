@@ -37,6 +37,12 @@ const revisionColumns = "map_instance,map_revision,command_attempt,id,idempotenc
 type SQLRevisions struct{ DB *sqlx.DB }
 type LockedRevisions struct{ connection *sqlx.Conn }
 
+func (s *LockedRevisions) Pending(ctx context.Context) ([]Revision, error) {
+	var rows []Revision
+	err := s.connection.SelectContext(ctx, &rows, "SELECT "+revisionColumns+" FROM settings_revisions WHERE status IN ('prepared','published','uncertain') ORDER BY created_at,id")
+	return rows, err
+}
+
 // Lock holds a dedicated connection so intent can commit before external effects
 // while all API processes serialize updates. Persistent unfinished rows survive crashes.
 func (r *SQLRevisions) Lock(ctx context.Context) (*LockedRevisions, error) {

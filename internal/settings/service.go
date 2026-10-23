@@ -15,6 +15,7 @@ import (
 )
 
 var ErrUnconfirmed = errors.New("游戏设置尚未确认生效，请在修改记录中继续确认。")
+var ErrAutoRestored = errors.New("上次修改未完成，配置已自动恢复为游戏当前生效值，请重新提交修改。")
 var ErrFileChanged = errors.New("游戏配置文件已被其他操作修改，请先核对配置。")
 
 type Publication interface {
@@ -26,6 +27,7 @@ type Commands interface {
 	ResolveSettings(context.Context, string, bool) (gameapi.Command, error)
 }
 type RevisionSession interface {
+	Pending(context.Context) ([]Revision, error)
 	Find(context.Context, string) (*Revision, error)
 	Create(context.Context, string, string, map[string]int64, string, string, gameapi.Actor) (Revision, error)
 	Transition(context.Context, string, string, string, *string) error
@@ -111,9 +113,23 @@ func (s *Service) apply(ctx context.Context, input Update, actor gameapi.Actor, 
 			return *row, nil
 		}
 		if row.Status == "failed" {
+			if row.ErrorCode != nil && *row.ErrorCode == "settings_auto_restored" {
+				return *row, ErrAutoRestored
+			}
 			return *row, ErrUnconfirmed
 		}
 	} else {
+		// Resolve abandoned publications while holding the same cross-process lock
+		// used for creating the next revision. Never replay their write commands.
+		pending, pendingErr := session.Pending(ctx)
+		if pendingErr != nil {
+			return result, pendingErr
+		}
+		for i := range pending {
+			if pendingErr = s.settle(ctx, session, &pending[i]); pendingErr != nil {
+				return result, fmt.Errorf("上一项游戏设置暂时无法自动恢复：%w", pendingErr)
+			}
+		}
 		previous, readErr := s.File.Read()
 		if readErr != nil {
 			return result, readErr
