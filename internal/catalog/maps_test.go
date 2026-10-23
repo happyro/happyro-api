@@ -50,3 +50,22 @@ func TestMapsRespectChannelsNamesAliasesAndCurrentMap(t *testing.T) {
 		t.Fatalf("canonical scope: %+v %v", page, err)
 	}
 }
+
+func TestMapsPreferCurrentLocalizedNamesOverStaleCatalogNames(t *testing.T) {
+	assets := fstest.MapFS{
+		"map-catalog.json":     {Data: []byte(`{"version":"test","entries":[{"map":"new_1-1","name":"训练场","supported":true}]}`)},
+		"map-names.zh-CN.json": {Data: []byte(`{"new_1-1":"初心者修炼场"}`)},
+		"map-order.json":       {Data: []byte(`{"common":[]}`)},
+	}
+	maps, err := LoadMaps(assets, strings.NewReader("new_1-1 1\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := maps.Maps(MapQuery{Search: "初心者修炼场", Pagination: database.Pagination{Page: 1, Size: 20}})
+	if err != nil || page.Total != 1 {
+		t.Fatalf("localized search failed: %+v %v", page, err)
+	}
+	if page.Data[0].Name == nil || *page.Data[0].Name != "初心者修炼场" {
+		t.Fatalf("stale display name: %+v", page.Data[0])
+	}
+}

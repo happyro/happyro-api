@@ -77,7 +77,7 @@ func LoadMaps(assets fs.FS, index io.Reader) (*Maps, error) {
 	catalog := &Maps{entries: map[string]MapEntry{}, names: names, order: map[string]int{}, maps: []Map{}}
 	for _, entry := range data.Entries {
 		catalog.entries[entry.Map] = entry
-		if entry.Name != nil {
+		if catalog.names[entry.Map] == "" && entry.Name != nil {
 			catalog.names[entry.Map] = *entry.Name
 		}
 	}
