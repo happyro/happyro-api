@@ -2,13 +2,13 @@
 
 ## Docker 交付
 
-API 是 HappyRO 四组镜像之一，和 Gateway、Server、Database 一起由[根仓库发布流程](https://github.com/happyro/happyro/blob/main/docs/operations/docker-release.md)全量构建。应用版本统一来自根仓库 `deploy/docker/VERSION`。离线包的安装与升级见[公开部署说明](https://happyro.kugarocks.com/container/docker)。
+API 是 HappyRO 四组镜像之一，和 Gateway、Server、Database 一起由[根仓库发布流程](https://github.com/happyro/happyro/blob/main/docs/operations/docker-release.md)全量构建。应用版本统一来自根仓库 `deploy/docker/VERSION`。离线包的安装与升级见[公开部署说明](https://happyro.kugarocks.com/deploy/docker)。
 
 Docker 中 Go API 通过内部 web-api 服务访问 Game Control，共享配置文件用于倍率等设置的持久化；不要把本机 loopback 地址直接用于跨容器连接。数据库、图片资源及配置挂载由根仓库模板定义。
 
 ## 原生开发环境
 
-Go 重写需要全新的空管理库，不能对 Laravel 管理库直接执行迁移。首次部署按顺序执行 `migrate`、`init`、`catalog import`。游戏库由具备结构修改权限的账号应用 happyro-server 的 `sql-files/happyro-accounts.sql`、`happyro-mail.sql` 和 `happyro-admin.sql`，建立账号唯一约束、删除队列及邮件回执表；运行账号只需要游戏库读写权限。重复账号或非 InnoDB 邮件表会使准备失败，程序不会自动删除账号或转换表引擎。
+首次部署需要独立的空管理库。首次部署按顺序执行 `migrate`、`init`、`catalog import`。游戏库由具备结构修改权限的账号应用 happyro-server 的 `sql-files/happyro-accounts.sql`、`happyro-mail.sql` 和 `happyro-admin.sql`，建立账号唯一约束、删除队列及邮件回执表；运行账号只需要游戏库读写权限。重复账号或非 InnoDB 邮件表会使准备失败，程序不会自动删除账号或转换表引擎。
 
 构建后安装 `happyro-api` 至服务配置的绝对路径。`.env.example` 是配置模板，Go 不自动读取 `.env`；使用 systemd `EnvironmentFile` 或显式导出环境变量。时长带单位，例如 `GAME_CONTROL_TIMEOUT=3s`、`SESSION_LIFETIME=2h`。
 
@@ -41,7 +41,7 @@ Go API 经 HTTP 调用 web-server，不直接连接 map-server Socket；共享�
 
 提示是固定的 `admin/admin` 文案，不读取真实密码。初始化配置仍为默认值但实际密码已经修改时，应设置 `SHOW_DEFAULT_CREDENTIALS=false` 隐藏提示。
 
-客户端刷新脚本使用 `/usr/local/bin/happyro-api` 导入完整资料快照，可通过 `HAPPYRO_API_BINARY` 指定其他已构建的 Go 二进制。脚本以后台服务账号通过 Bash 显式加载 `happyro-api/.env`，因此环境文件须使用可被 Bash 加载的赋值格式。物品子类生成脚本使用 Go 工具链执行源码中的共用分类规则，不依赖数据库或 PHP。
+客户端刷新脚本使用 `/usr/local/bin/happyro-api` 导入完整资料快照，可通过 `HAPPYRO_API_BINARY` 指定其他已构建的 Go 二进制。脚本以后台服务账号通过 Bash 显式加载 `happyro-api/.env`，因此环境文件须使用可被 Bash 加载的赋值格式。物品子类生成脚本使用 Go 工具链执行源码中的共用分类规则，不依赖数据库。
 
 ## macOS Go 服务切换
 
@@ -58,4 +58,10 @@ python3 tools/deployment/native_api.py prepare --workspace . \
   --output work/runtime/native/launchd/local.happyro.api.go.plist
 ```
 
-生成工具只创建 plist，不启动服务，不读取或复制环境中的密钥，也不覆盖已有输出。先在显式加载环境后执行新管理库迁移、初始化与完整资料导入；游戏库由操作账号完成上述游戏库 SQL 初始化。确认 Go 程序可启动后，再卸载旧 Admin launchd 服务，将生成配置安装为 `local.happyro.api.plist` 并重新加载。服务管理脚本会拒绝仍引用 PHP/Artisan 的旧配置。不要覆盖正在运行的二进制；更新时先停止对应服务。
+生成工具只创建 plist，不启动服务，不读取或复制环境中的密钥，也不覆盖已有输出。先在显式加载环境后执行新管理库迁移、初始化与完整资料导入；游戏库由操作账号完成上述游戏库 SQL 初始化。确认 Go 程序可启动后，将生成配置安装为 `local.happyro.api.plist` 并加载；更新已有配置前先停止对应服务。不要覆盖正在运行的二进制；更新时先停止对应服务。
+
+## 游戏设置与部署覆盖
+
+地图服通过 `battle_config.read` 返回 `environment_overrides`。API 在写入受管理文件之前拒绝涉及非空环境覆盖的修改，并返回变量名；不需要将地图服的 HAPPYRO_NAVIGATION_* / HAPPYRO_GAME_TOOLS_* 复制到 API 环境。两端应使用同一套控制协议。
+
+完整变量见[环境变量参考](https://happyro.kugarocks.com/deploy/environment-variables)。Go API 的 `.env.example` 只是模板，不由程序自动读取；Docker `.env` 由 Compose 注入，修改后重新创建相应容器，单独 restart 不更新环境。
