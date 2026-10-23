@@ -27,6 +27,10 @@ func (s *Handler) accountError(c *gin.Context, err error) {
 		s.Fail(c, 409, "account_exists", err.Error())
 	case errors.Is(err, accountsapi.ErrAccountNotFound):
 		s.Fail(c, 404, "account_not_found", err.Error())
+	case errors.Is(err, accountsapi.ErrGroupChanged):
+		s.Fail(c, 409, "account_group_changed", err.Error())
+	case errors.Is(err, accountsapi.ErrGMPermission):
+		s.Fail(c, 403, "forbidden", err.Error())
 	case errors.Is(err, accountsapi.ErrProtected):
 		s.Fail(c, 403, "protected_account", err.Error())
 	default:
@@ -161,4 +165,22 @@ func (s *Handler) accountDeletions(c *gin.Context) {
 		return
 	}
 	c.JSON(200, result)
+}
+
+func (s *Handler) setAccountGM(c *gin.Context) {
+	id, ok := s.accountID(c)
+	if !ok {
+		return
+	}
+	var input accountsapi.GMUpdate
+	if err := response.DecodeJSON(c, &input); err != nil {
+		s.Fail(c, 422, "validation_failed", "GM 参数格式无效。")
+		return
+	}
+	row, err := s.AccountManagement.SetGM(c.Request.Context(), id, input, c.MustGet("user").(identityapi.User), response.Client(c))
+	if err != nil {
+		s.accountError(c, err)
+		return
+	}
+	c.JSON(200, gin.H{"data": row})
 }
