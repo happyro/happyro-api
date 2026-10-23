@@ -133,3 +133,43 @@ func TestAccountUpdateReportsDeletionAndLockConflicts(t *testing.T) {
 		})
 	}
 }
+
+type gmWriter struct {
+	calls           int
+	expected, group int64
+}
+
+func (w *gmWriter) SetGM(_ context.Context, id, expected, group int64) (database.Row, error) {
+	w.calls++
+	w.expected = expected
+	w.group = group
+	if expected == 1 {
+		return nil, accountsapi.ErrGroupChanged
+	}
+	return database.Row{"account_id": id, "group_id": group}, nil
+}
+func TestGameGMPermissionsAndValidation(t *testing.T) {
+	writer := &gmWriter{}
+	b, repo := newBrowser(t, func(s *Server) { s.AccountManagement = &accountsapi.Management{GM: writer, Audit: playerAudit{}} })
+	b.login(t)
+	path := "/api/players/accounts/2000000/gm"
+	expectStatus(t, b.request("PUT", path, `{"group_id":99,"expected_group_id":0}`, "", false), 419)
+	repo.user.Permissions = []string{"players.view", "players.edit"}
+	expectStatus(t, b.request("PUT", path, `{"group_id":99,"expected_group_id":0}`, "", true), 403)
+	repo.user.Permissions = []string{"players.view", "players.gm"}
+	for _, body := range []string{`{}`, `{"group_id":99}`, `{"group_id":50,"expected_group_id":0}`, `{"group_id":99,"expected_group_id":0,"unexpected":1}`} {
+		expectStatus(t, b.request("PUT", path, body, "", true), 422)
+	}
+	if writer.calls != 0 {
+		t.Fatal("invalid request reached writer")
+	}
+	expectStatus(t, b.request("PUT", path, `{"group_id":99,"expected_group_id":0}`, "", true), 200)
+	if writer.group != 99 || writer.expected != 0 {
+		t.Fatal("wrong promotion")
+	}
+	expectStatus(t, b.request("PUT", path, `{"group_id":0,"expected_group_id":99}`, "", true), 200)
+	if writer.group != 0 || writer.expected != 99 {
+		t.Fatal("wrong demotion")
+	}
+	expectStatus(t, b.request("PUT", path, `{"group_id":99,"expected_group_id":1}`, "", true), 409)
+}

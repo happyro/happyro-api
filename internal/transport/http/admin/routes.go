@@ -22,6 +22,7 @@ func (s *Handler) Register(router *gin.Engine) {
 	group.POST("/accounts/:accountId/deletion/retry", s.permission("players.edit"), s.retryAccountDeletion)
 	group.POST("/accounts/batch", s.permission("players.edit"), s.batchAccounts)
 	group.POST("/accounts", s.permission("players.edit"), s.createAccount)
+	group.PUT("/accounts/:accountId/gm", s.permission("players.gm"), s.setAccountGM)
 	group.PATCH("/accounts/:accountId", s.permission("players.edit"), s.updateAccount)
 	group.POST("/accounts/:accountId/password", s.permission("players.edit"), s.accountPassword)
 	group.GET("/characters", s.characters)
