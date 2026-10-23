@@ -10,11 +10,12 @@ import (
 // SettingsState is an atomic observation from the map event loop. Values alone
 // are not evidence that an earlier settings command can no longer execute.
 type SettingsState struct {
-	Values        map[string]int64 `json:"values"`
-	InstanceID    string           `json:"instance_id"`
-	Revision      uint64           `json:"revision"`
-	LastCommandID string           `json:"last_command_id"`
-	LastStatus    string           `json:"last_status"`
+	Values               map[string]int64  `json:"values"`
+	EnvironmentOverrides map[string]string `json:"environment_overrides"`
+	InstanceID           string            `json:"instance_id"`
+	Revision             uint64            `json:"revision"`
+	LastCommandID        string            `json:"last_command_id"`
+	LastStatus           string            `json:"last_status"`
 }
 
 func (g *HTTPGateway) SettingsState(ctx context.Context) (SettingsState, error) {
@@ -25,11 +26,12 @@ func (g *HTTPGateway) SettingsState(ctx context.Context) (SettingsState, error) 
 	// A missing revision must not silently become zero and admit a new command.
 	var envelope struct {
 		Result struct {
-			Values        map[string]int64 `json:"values"`
-			InstanceID    string           `json:"instance_id"`
-			Revision      *uint64          `json:"revision"`
-			LastCommandID *string          `json:"last_command_id"`
-			LastStatus    string           `json:"last_status"`
+			Values               map[string]int64  `json:"values"`
+			EnvironmentOverrides map[string]string `json:"environment_overrides"`
+			InstanceID           string            `json:"instance_id"`
+			Revision             *uint64           `json:"revision"`
+			LastCommandID        *string           `json:"last_command_id"`
+			LastStatus           string            `json:"last_status"`
 		} `json:"result"`
 	}
 	if err = json.Unmarshal(raw, &envelope); err != nil {
@@ -57,7 +59,7 @@ func (g *HTTPGateway) SettingsState(ctx context.Context) (SettingsState, error) 
 	default:
 		return SettingsState{}, invalidResponse(false)
 	}
-	return SettingsState{Values: result.Values, InstanceID: result.InstanceID, Revision: *result.Revision, LastCommandID: commandID, LastStatus: result.LastStatus}, nil
+	return SettingsState{Values: result.Values, EnvironmentOverrides: result.EnvironmentOverrides, InstanceID: result.InstanceID, Revision: *result.Revision, LastCommandID: commandID, LastStatus: result.LastStatus}, nil
 }
 
 // FenceSettings advances the map version without changing any game setting.
