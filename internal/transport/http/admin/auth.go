@@ -155,16 +155,18 @@ func (s *Handler) Protect(c *gin.Context) {
 		c.Next()
 		return
 	}
-	if origin := c.GetHeader("Origin"); origin != "" {
-		expected, _ := url.Parse(s.Config.PublicURL)
-		if origin != expected.Scheme+"://"+expected.Host {
+	if s.Config.AdminCSRFOriginCheckEnabled {
+		if origin := c.GetHeader("Origin"); origin != "" {
+			expected, _ := url.Parse(s.Config.PublicURL)
+			if origin != expected.Scheme+"://"+expected.Host {
+				s.Fail(c, http.StatusForbidden, "csrf_failed", "请求来源不受信任。")
+				return
+			}
+		}
+		if c.GetHeader("Sec-Fetch-Site") == "cross-site" {
 			s.Fail(c, http.StatusForbidden, "csrf_failed", "请求来源不受信任。")
 			return
 		}
-	}
-	if c.GetHeader("Sec-Fetch-Site") == "cross-site" {
-		s.Fail(c, http.StatusForbidden, "csrf_failed", "请求来源不受信任。")
-		return
 	}
 	if !s.validCSRF(c) {
 		s.Fail(c, 419, "csrf_failed", "会话验证已过期，请刷新页面后重试。")

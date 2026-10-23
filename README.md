@@ -35,7 +35,8 @@ go build -mod=readonly -o bin/happyro-api ./cmd/happyro-api
 
 | 配置 | 用途 |
 | --- | --- |
-| `HTTP_LISTEN`、`APP_URL` | 监听地址与浏览器实际访问来源 |
+| `HTTP_LISTEN`、`APP_URL` | 监听地址与后台公开地址；开启来源校验时，浏览器来源必须与 APP_URL 一致 |
+| `ADMIN_CSRF_ORIGIN_CHECK_ENABLED` | 默认 `false`，不校验 Origin 和 Sec-Fetch-Site；设为 `true` 启用来源校验。两种模式均要求有效 CSRF Token |
 | `FRONTEND_DIR` | Admin 构建产物目录；前端开发代理由 Admin 仓库维护 |
 | `DB_*`、`GAME_DB_*` | 独立的管理库与游戏库连接 |
 | `GAME_CONTROL_BASE_URL`、`GAME_CONTROL_TOKEN` | 与游戏服通信的地址和密钥 |
@@ -69,6 +70,14 @@ deploy/               Docker 与 systemd 部署文件
 ```
 
 HTTP 与 CLI 负责输入、输出转换，业务逻辑在领域模块中复用；数据库、文件和游戏服务依赖通过接口注入。目录快照由根仓库工具生成，导入时同时校验客户端物品、服务端物品、魔物和 NPC 四份资料，再原子发布。
+
+## 游戏账号权限
+
+`PUT /api/players/accounts/{accountId}/gm` 设置游戏账号组，要求管理员具备 `players.view` 和 `players.gm`。请求必须包含目标 `group_id`（普通玩家 0 或 GM 99）及读取时的 `expected_group_id`。普通账号 PATCH 接口不接受此字段。
+
+权限作用于账号下所有角色，不改变后台管理员身份。登录服在完整退出并重新登录后加载新组；现有在线角色保持当前会话权限。旧组不匹配返回 409，不能静默覆盖其他管理员的修改。写入复用账号锁，保护服务器账号和删除中的账号，并记录 `player.gm_changed` 审计事件。
+
+管理库迁移 `00010_account_gm.sql` 为 administrator 添加 `players.gm`；super_admin 通过通配权限访问。部署升级须执行管理库迁移，见[部署说明](docs/deployment.md)。
 
 ## 技术栈与检查
 
