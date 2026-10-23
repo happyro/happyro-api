@@ -6,6 +6,14 @@ API 是 HappyRO 四组镜像之一，和 Gateway、Server、Database 一起由[�
 
 Docker 中 Go API 通过内部 web-api 服务访问 Game Control，共享配置文件用于倍率等设置的持久化；不要把本机 loopback 地址直接用于跨容器连接。数据库、图片资源及配置挂载由根仓库模板定义。
 
+## 管理库升级与访问来源
+
+升级前备份管理库与游戏库，使用当前程序执行 `happyro-api migrate --no-color`，再启动服务。Docker 由 `api-init` 执行管理库迁移；检查其退出状态及日志。不要用首次空库初始化替代现有库升级。
+
+`00010_account_gm.sql` 为 administrator 添加 `players.gm`，允许设置游戏账号 GM；super_admin 沿用通配权限。账号 GM 与后台管理员角色互不等价，保存后需完整退出游戏并重新登录。
+
+`ADMIN_CSRF_ORIGIN_CHECK_ENABLED` 默认 `false`，关闭后台 Origin 和 Sec-Fetch-Site 来源限制，允许通过不同 IP 或域名访问；两种模式均要求有效会话及 CSRF Token。设为 `true` 后实际浏览器来源须与 `APP_URL` 一致；Docker 的 `ADMIN_PUBLIC_URL` 映射到 `APP_URL`。修改环境后重新创建 API 容器或重启原生服务。
+
 ## 原生开发环境
 
 首次部署需要独立的空管理库。首次部署按顺序执行 `migrate`、`init`、`catalog import`。游戏库由具备结构修改权限的账号应用 happyro-server 的 `sql-files/happyro-accounts.sql`、`happyro-mail.sql` 和 `happyro-admin.sql`，建立账号唯一约束、删除队列及邮件回执表；运行账号只需要游戏库读写权限。重复账号或非 InnoDB 邮件表会使准备失败，程序不会自动删除账号或转换表引擎。

@@ -79,7 +79,7 @@ func newBrowser(t *testing.T, configure ...func(*Server)) (*browser, *identityRe
 	sessions := scs.New()
 	sessions.Cookie.Name = "happyro_admin_session"
 	sessions.Cookie.Persist = false
-	app := &Server{Auth: service, Sessions: sessions, Logger: zap.NewNop(), Config: config.Config{PublicURL: "http://admin.local", SessionLifetime: 2 * time.Hour, RememberLifetime: 30 * 24 * time.Hour, InitialUsername: "admin", InitialPassword: "admin", ShowDefaultCredentials: true}}
+	app := &Server{Auth: service, Sessions: sessions, Logger: zap.NewNop(), Config: config.Config{AdminCSRFOriginCheckEnabled: true, PublicURL: "http://admin.local", SessionLifetime: 2 * time.Hour, RememberLifetime: 30 * 24 * time.Hour, InitialUsername: "admin", InitialPassword: "admin", ShowDefaultCredentials: true}}
 	for _, setup := range configure {
 		setup(app)
 	}
@@ -125,7 +125,7 @@ func (b *browser) login(t *testing.T) {
 }
 
 func TestLoginRequiresSessionBoundCSRFAndTrustedOrigin(t *testing.T) {
-	b, repo := newBrowser(t)
+	b, repo := newBrowser(t, func(s *Server) { s.Config.AdminCSRFOriginCheckEnabled = true })
 	expectStatus(t, b.request("POST", "/api/auth/login", `{"username":"admin","password":"admin"}`, "", false), 419)
 	expectStatus(t, b.request("GET", "/api/auth/csrf", "", "", false), 204)
 	expectStatus(t, b.request("POST", "/api/auth/login", `{"username":"admin","password":"admin"}`, "https://attacker.example", true), 403)
@@ -235,5 +235,38 @@ func TestPlayerWritesRequireViewAndEditPermissions(t *testing.T) {
 			repo.user.Permissions = []string{"players.edit"}
 			expectStatus(t, b.request(route.method, route.path, `{}`, "", true), 403)
 		})
+	}
+}
+
+func TestDisabledOriginCheckStillRequiresCSRF(t *testing.T) {
+	b, repo := newBrowser(t, func(s *Server) { s.Config.AdminCSRFOriginCheckEnabled = false })
+	body := `{"username":"admin","password":"admin"}`
+	expectStatus(t, b.request("GET", "/api/auth/csrf", "", "", false), 204)
+	expectStatus(t, b.request("POST", "/api/auth/login", body, "http://10.24.1.24:8000", false), 419)
+	if repo.attempts != 0 {
+		t.Fatal("missing token reached authentication")
+	}
+	expectStatus(t, b.request("POST", "/api/auth/login", body, "http://10.24.1.24:8000", true), 200)
+}
+
+func TestOriginSwitchControlsFetchMetadataWithoutBypassingToken(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		b, _ := newBrowser(t, func(s *Server) { s.Config.AdminCSRFOriginCheckEnabled = enabled })
+		expectStatus(t, b.request("GET", "/api/auth/csrf", "", "", false), 204)
+		request := httptest.NewRequest("POST", "http://admin.local/api/auth/login", strings.NewReader(`{"username":"admin","password":"admin"}`))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Origin", "http://admin.local")
+		request.Header.Set("Sec-Fetch-Site", "cross-site")
+		request.Header.Set("X-XSRF-TOKEN", b.cookies["XSRF-TOKEN"].Value)
+		for _, cookie := range b.cookies {
+			request.AddCookie(cookie)
+		}
+		response := httptest.NewRecorder()
+		b.handler.ServeHTTP(response, request)
+		want := 200
+		if enabled {
+			want = 403
+		}
+		expectStatus(t, response, want)
 	}
 }
