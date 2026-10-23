@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/go-sql-driver/mysql"
@@ -35,6 +36,7 @@ func (d Database) DSN() string {
 }
 
 type Config struct {
+	TimeZone               string        `env:"APP_TIMEZONE" envDefault:"Asia/Shanghai"`
 	Listen                 string        `env:"HTTP_LISTEN" envDefault:":8080"`
 	PublicURL              string        `env:"APP_URL" envDefault:"http://localhost:8080"`
 	FrontendDir            string        `env:"FRONTEND_DIR" envDefault:"../happyro-admin/dist"`
@@ -69,6 +71,12 @@ func Load() (Config, error) {
 }
 
 func (c Config) Validate() error {
+	if c.TimeZone == "" || c.TimeZone == "Local" {
+		return errors.New("APP_TIMEZONE must be an explicit IANA time zone")
+	}
+	if _, err := time.LoadLocation(c.TimeZone); err != nil {
+		return errors.New("APP_TIMEZONE must be a valid IANA time zone")
+	}
 	for name, raw := range map[string]string{"APP_URL": c.PublicURL, "GAME_CONTROL_BASE_URL": c.GameControlURL} {
 		u, err := url.Parse(raw)
 		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {

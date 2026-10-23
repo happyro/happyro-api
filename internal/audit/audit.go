@@ -57,7 +57,7 @@ func (s *SQLStore) History(ctx context.Context, action string, p database.Pagina
 	if !p.Valid() {
 		return History{}, errors.New("invalid history pagination")
 	}
-	page, err := database.Paginate(ctx, s.DB, "a.id,a.actor_id AS user_id,a.username,a.action AS event,a.ip_address,a.user_agent,a.metadata,CAST(a.created_at AS CHAR) AS created_at,u.name AS actor_name,u.username AS actor_username", "audit_logs a LEFT JOIN users u ON u.id=a.actor_id", " WHERE a.action=?", "a.id DESC", []any{action}, p)
+	page, err := database.Paginate(ctx, s.DB, "a.id,a.actor_id AS user_id,a.username,a.action AS event,a.ip_address,a.user_agent,a.metadata,DATE_FORMAT(a.created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS created_at,u.name AS actor_name,u.username AS actor_username", "audit_logs a LEFT JOIN users u ON u.id=a.actor_id", " WHERE a.action=?", "a.id DESC", []any{action}, p)
 	if err != nil {
 		return History{}, err
 	}

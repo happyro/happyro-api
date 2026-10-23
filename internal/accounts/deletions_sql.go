@@ -11,7 +11,7 @@ import (
 
 type SQLDeletions struct{ DB *sqlx.DB }
 
-const deletionProjection = "account_id,account_name,status,error_code,total_characters,deleted_characters,CAST(created_at AS CHAR) AS created_at,CAST(updated_at AS CHAR) AS updated_at"
+const deletionProjection = "account_id,account_name,status,error_code,total_characters,deleted_characters,DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS created_at,DATE_FORMAT(updated_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS updated_at"
 
 func (r *SQLDeletions) Find(ctx context.Context, id int64) (*Deletion, error) {
 	var row Deletion

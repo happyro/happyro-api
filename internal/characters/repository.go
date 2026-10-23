@@ -16,7 +16,7 @@ func search(value string) string {
 	return "%" + strings.NewReplacer("!", "!!", "%", "!%", "_", "!_").Replace(value) + "%"
 }
 
-const characterSummary = "c.char_id,c.account_id,a.userid AS username,c.name,c.class,c.base_level,c.job_level,c.last_map,c.online,CAST(c.last_login AS CHAR) AS last_login"
+const characterSummary = "c.char_id,c.account_id,a.userid AS username,c.name,c.class,c.base_level,c.job_level,c.last_map,c.online,DATE_FORMAT(c.last_login,'%Y-%m-%dT%H:%i:%s.%fZ') AS last_login"
 const characterDetails = characterSummary + ",c.base_exp,c.job_exp,c.zeny,c.str,c.agi,c.vit,c.`int`,c.dex,c.luk,c.max_hp,c.hp,c.max_sp,c.sp,c.status_point,c.skill_point,c.pow,c.sta,c.wis,c.spl,c.con,c.crt,c.trait_point,c.ap,c.max_ap,c.last_x,c.last_y"
 const characterSource = "`char` c LEFT JOIN login a ON a.account_id=c.account_id"
 
