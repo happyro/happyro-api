@@ -22,6 +22,7 @@ var instancePattern = regexp.MustCompile(`^([12]@|e_|dali|ver_eju|glast_01)`)
 var dungeonPattern = regexp.MustCompile(`(_in\d*|_dun\d*|dun\d*|_q\d*|_room|_boss)$`)
 
 type MapEntry struct {
+	PlayerHidden bool    `json:"player_hidden"`
 	ID           int     `json:"id"`
 	Map          string  `json:"map"`
 	Name         *string `json:"name"`
@@ -169,7 +170,7 @@ func (c *Maps) Maps(q MapQuery) (MapPage, error) {
 	rows := []Map{}
 	onMap, currentMap := c.canonical(q.OnMap, q.ChannelsEnabled), c.canonical(q.CurrentMap, q.ChannelsEnabled)
 	for _, source := range c.maps {
-		if q.GameOnly && (!source.Supported || (!q.ChannelsEnabled && source.Channel != nil && *source.Channel != 1)) {
+		if q.GameOnly && (!source.Supported || c.entries[source.Map].PlayerHidden || (!q.ChannelsEnabled && source.Channel != nil && *source.Channel != 1)) {
 			continue
 		}
 		row := source
@@ -181,7 +182,7 @@ func (c *Maps) Maps(q MapQuery) (MapPage, error) {
 		if row.Name != nil {
 			name = *row.Name
 		}
-		if !contains(row.Map, q.Map) || !contains(name, q.Name) || (onMap != "" && row.Map != onMap) || (!contains(row.Map, q.Search) && !contains(name, q.Search)) {
+		if !contains(row.Map, q.Map) || !contains(name, q.Name) || (onMap != "" && row.Map != onMap) || !c.matchesSearch(row, q.Search) {
 			continue
 		}
 		rows = append(rows, row)
@@ -191,6 +192,8 @@ func (c *Maps) Maps(q MapQuery) (MapPage, error) {
 		left, right := []int{c.commonRank(a.Map)}, []int{c.commonRank(b.Map)}
 		if q.AdventureOrder {
 			left, right = c.adventureRank(a, q.Search), c.adventureRank(b, q.Search)
+		} else if strings.TrimSpace(q.Search) != "" {
+			left, right = append([]int{c.searchRank(a, q.Search)}, left...), append([]int{c.searchRank(b, q.Search)}, right...)
 		}
 		if compared := slices.Compare(left, right); compared != 0 {
 			return compared
@@ -220,14 +223,8 @@ func (c *Maps) commonRank(name string) int {
 	return len(c.order)
 }
 func (c *Maps) adventureRank(row Map, query string) []int {
-	term := strings.ToLower(strings.TrimSpace(query))
-	code, name := strings.ToLower(row.Map), strings.ToLower(nameOf(row))
-	match := 2
-	if term == "" || code == term || name == term {
-		match = 0
-	} else if strings.HasPrefix(code, term) || strings.HasPrefix(name, term) {
-		match = 1
-	}
+	match := c.searchRank(row, query)
+	name := strings.ToLower(nameOf(row))
 	kind := 2
 	rank, common := c.order[row.Map]
 	switch {

@@ -111,9 +111,10 @@ func (g *adventureMapGateway) BattleConfig(context.Context) (map[string]int64, e
 }
 func TestAdventureMapsUseLiveChannelsAndGameOnlyScope(t *testing.T) {
 	assets := fstest.MapFS{
-		"map-catalog.json":     {Data: []byte(`{"version":"test","entries":[{"map":"town","supported":true,"channel":1,"canonical_map":"town"},{"map":"town2","supported":true,"channel":2,"canonical_map":"town"},{"map":"field","supported":true}]}`)},
-		"map-names.zh-CN.json": {Data: []byte(`{}`)},
-		"map-order.json":       {Data: []byte(`{"common":["town"]}`)},
+		"map-catalog.json":              {Data: []byte(`{"version":"test","entries":[{"map":"town","supported":true,"channel":1,"canonical_map":"town"},{"map":"town2","supported":true,"channel":2,"canonical_map":"town"},{"map":"field","supported":true}]}`)},
+		"map-names.zh-CN.json":          {Data: []byte(`{}`)},
+		"map-search-aliases.zh-CN.json": {Data: []byte(`{}`)},
+		"map-order.json":                {Data: []byte(`{"common":["town"]}`)},
 	}
 	maps, err := catalog.LoadMaps(assets, strings.NewReader("town 1\ntown2 2\nfield 3\nunused 4\n"))
 	if err != nil {

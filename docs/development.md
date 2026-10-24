@@ -32,3 +32,13 @@ go build -mod=readonly -o bin/happyro-api ./cmd/happyro-api
 `POST /api/auth/password` 使用管理员会话、CSRF 和 `ADMIN_PASSWORD_CHANGE_ENABLED` 校验，只操作当前会话账号。`SelfPasswordService` 校验当前密码、新密码和确认值，按账号限制尝试频率；仓库以旧密码哈希和启用状态作原子条件，密码更新与审计在同一事务提交。审计失败回滚改密，并发请求不能覆盖已经改变的密码。
 
 `GET /api/auth/user` 返回部署能力 `passwordChangeEnabled`，无后台开关或专用配置表。改密后销毁当前会话，其他会话通过已有 `password_version` 校验失效；CLI 管理员维护不受网页入口开关限制。
+
+## 地图名称与玩家搜索
+
+玩家地图搜索只匹配当前显示名称，不使用旧全称、别名或不同于显示名称的地图代码。名称来自根仓库 `localization/maps/display-names.json` 的审定结果，保持与客户端、NPC 目录和后台冗余映射一致；例如公会区域使用「艾尔帕兰 露依纳」。`new_event` 和 `pprontera` 不列入玩家地图列表及导航，后台查询和资源仍保留，不因此删除底层地图。变更目录后执行原子导入，不能只重启 API。
+
+## 魔物名称与资料来源
+
+`resources/game-data/monsters/renewal.json` 的中文名来自已审定的客户端／服务端名称表，ID 与 AegisName 为关联依据；英文名称使用固定 Git 基线，不从中文猜译。源文件和目录版本记录在快照元数据中。
+
+生成由根仓库资源工具负责，验证使用 `python3 -m tools.resources.monsters.verify_application verify --no-color`。改名不修改战斗数值、掉落、内部身份或权限。刷新磁盘快照后，通过完整 `catalog import` 将四份资料原子发布；内容不变时保留当前代次。不要以重新启动 HTTP 进程代替目录导入。
