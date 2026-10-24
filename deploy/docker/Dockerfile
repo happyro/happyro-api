@@ -35,8 +35,8 @@ COPY tools/deployment/catalogs.py /opt/happyro/catalogs.py
 COPY repos/happyro-api/deploy/docker/entrypoint.sh /usr/local/bin/happyro-entrypoint
 RUN chmod 755 /usr/local/bin/happyro-entrypoint /usr/local/bin/happyro-api \
     && chown -R www-data:www-data /opt/api/resources/game-data \
-    && find /opt/api /opt/admin-ui -type d -exec chmod 755 {} + \
-    && find /opt/api /opt/admin-ui -type f -exec chmod a+r {} +
+    && find /opt/api /opt/admin-ui /opt/happyro -type d -exec chmod 755 {} + \
+    && find /opt/api /opt/admin-ui /opt/happyro -type f -exec chmod a+r {} +
 ENV GIN_MODE=release HTTP_LISTEN=:8080 FRONTEND_DIR=/opt/admin-ui LOG_LEVEL=info
 EXPOSE 8080
 ENTRYPOINT ["happyro-entrypoint"]
