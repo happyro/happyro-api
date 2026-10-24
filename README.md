@@ -37,6 +37,7 @@ go build -mod=readonly -o bin/happyro-api ./cmd/happyro-api
 | --- | --- |
 | `HTTP_LISTEN`、`APP_URL` | 监听地址与后台公开地址；开启来源校验时，浏览器来源必须与 APP_URL 一致 |
 | `ADMIN_CSRF_ORIGIN_CHECK_ENABLED` | 默认 `false`，不校验 Origin 和 Sec-Fetch-Site；设为 `true` 启用来源校验。两种模式均要求有效 CSRF Token |
+| `ADMIN_PASSWORD_CHANGE_ENABLED` | 默认 `true`，允许后台自助改密；演示环境设置 `false`，隐藏入口并拒绝改密请求，CLI 改密不受影响 |
 | `FRONTEND_DIR` | Admin 构建产物目录；前端开发代理由 Admin 仓库维护 |
 | `DB_*`、`GAME_DB_*` | 独立的管理库与游戏库连接 |
 | `GAME_CONTROL_BASE_URL`、`GAME_CONTROL_TOKEN` | 与游戏服通信的地址和密钥 |

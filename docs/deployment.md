@@ -43,7 +43,7 @@ Go API 经 HTTP 调用 web-server，不直接连接 map-server Socket；共享�
 
 ### 初始管理员账号
 
-部署目录 `.env` 中的 `ADMIN_INITIAL_USERNAME` 和 `ADMIN_INITIAL_PASSWORD` 指定初始管理员，默认均为 `admin`。首次初始化只在管理库没有任何账号时创建超级管理员；已有账号时直接跳过，不覆盖密码、角色或状态。修改变量不会重置已有账号。用户名沿用小写字母、数字、下划线、点及短横线规则，密码为 5–255 个字符。
+部署目录 `.env` 中的 `ADMIN_INITIAL_USERNAME` 和 `ADMIN_INITIAL_PASSWORD` 指定初始管理员，默认均为 `admin`。首次初始化只在管理库没有任何账号时创建超级管理员；已有账号时直接跳过，不覆盖密码、角色或状态。修改变量不会重置已有账号。用户名沿用小写字母、数字、下划线、点及短横线规则，密码为 5–255 个 UTF-8 字节。
 
 使用自定义账号或密码时，登录页隐藏默认凭据提示，即使 `SHOW_DEFAULT_CREDENTIALS=true`；公开配置接口不返回自定义凭据。直接部署使用 `happyro-api init --no-color`。
 
@@ -73,3 +73,15 @@ python3 tools/deployment/native_api.py prepare --workspace . \
 地图服通过 `battle_config.read` 返回 `environment_overrides`。API 在写入受管理文件之前拒绝涉及非空环境覆盖的修改，并返回变量名；不需要将地图服的 HAPPYRO_NAVIGATION_* / HAPPYRO_GAME_TOOLS_* 复制到 API 环境。两端应使用同一套控制协议。
 
 完整变量见[环境变量参考](https://happyro.kugarocks.com/deploy/environment-variables)。Go API 的 `.env.example` 只是模板，不由程序自动读取；Docker `.env` 由 Compose 注入，修改后重新创建相应容器，单独 restart 不更新环境。
+
+## 后台账号改密
+
+`ADMIN_PASSWORD_CHANGE_ENABLED` 是后台自助改密的唯一开关，默认 `true`。共享 admin 账号的演示环境应设置为 `false`：隐藏头像菜单中的改密入口，API 同时拒绝改密请求，后台用户无法重新开启。原生部署修改环境变量后重启 API；Docker 部署修改 `.env` 后运行 `docker compose up -d --no-deps --force-recreate api`。
+
+改密入口在头像菜单，要求当前密码、新密码及确认新密码；成功后所有旧登录会话在下次请求时失效。该环境变量不限制服务器 CLI `users password`。新密码沿用现有 5～255 字节规则。
+
+## 后台登录限流
+
+后台密码登录按「规范化用户名 + 来源 IP」计数：固定 60 秒窗口内允许 5 次尝试，第 6 次起返回 HTTP 429 和 `Retry-After`；登录成功清除对应计数。计数保存在管理库 `login_attempts`，使用数据库时钟和事务更新，并发请求与多个 API 实例共用限制。失败及限流写入审计日志。
+
+当前没有跨 IP 的账号总限流或全局 IP 总限流，不应将其视为完整的分布式爆破防护。反向代理部署需按实际代理配置 `HTTP_TRUSTED_PROXIES`，确保来源 IP 识别正确。此处描述的是后台账号登录，游戏账号认证使用独立流程。

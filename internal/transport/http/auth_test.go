@@ -79,7 +79,7 @@ func newBrowser(t *testing.T, configure ...func(*Server)) (*browser, *identityRe
 	sessions := scs.New()
 	sessions.Cookie.Name = "happyro_admin_session"
 	sessions.Cookie.Persist = false
-	app := &Server{Auth: service, Sessions: sessions, Logger: zap.NewNop(), Config: config.Config{AdminCSRFOriginCheckEnabled: true, PublicURL: "http://admin.local", SessionLifetime: 2 * time.Hour, RememberLifetime: 30 * 24 * time.Hour, InitialUsername: "admin", InitialPassword: "admin", ShowDefaultCredentials: true}}
+	app := &Server{Passwords: identityapi.NewSelfPasswordService(repo, testHasher{}), Auth: service, Sessions: sessions, Logger: zap.NewNop(), Config: config.Config{AdminPasswordChangeEnabled: true, AdminCSRFOriginCheckEnabled: true, PublicURL: "http://admin.local", SessionLifetime: 2 * time.Hour, RememberLifetime: 30 * 24 * time.Hour, InitialUsername: "admin", InitialPassword: "admin", ShowDefaultCredentials: true}}
 	for _, setup := range configure {
 		setup(app)
 	}
@@ -156,7 +156,7 @@ func TestLoginRotatesSessionAndLogoutRevokesIt(t *testing.T) {
 	if data.Data["username"] != "admin" || data.Data["access"] != "admin" {
 		t.Fatalf("wrong identity: %s", response.Body.String())
 	}
-	if strings.Contains(response.Body.String(), "password") {
+	if data.Data["password_hash"] != nil || data.Data["password"] != nil || strings.Contains(response.Body.String(), "test:admin") {
 		t.Fatal("password information exposed")
 	}
 	stolen := *cookie
@@ -269,4 +269,97 @@ func TestOriginSwitchControlsFetchMetadataWithoutBypassingToken(t *testing.T) {
 		}
 		expectStatus(t, response, want)
 	}
+}
+
+func (r *identityRepository) ReplacePassword(_ context.Context, user identityapi.User, hash string, _ identityapi.Client) error {
+	if user.ID != r.user.ID || user.PasswordHash != r.user.PasswordHash || !r.user.Active {
+		return identityapi.ErrCurrentPassword
+	}
+	r.user.PasswordHash = hash
+	r.events = append(r.events, "user.password_changed")
+	return nil
+}
+func TestSelfPasswordChange(t *testing.T) {
+	b, r := newBrowser(t)
+	b.request("GET", "/api/auth/csrf", "", "", false)
+	if got := b.request("POST", "/api/auth/login", `{"username":"admin","password":"admin"}`, "http://admin.local", true); got.Code != 200 {
+		t.Fatal(got.Body.String())
+	}
+	oldCookies := map[string]*http.Cookie{}
+	for k, v := range b.cookies {
+		oldCookies[k] = v
+	}
+	other := &browser{handler: b.handler, cookies: oldCookies}
+	body := `{"currentPassword":"admin","newPassword":"changed-password","confirmPassword":"changed-password","userId":999}`
+	if got := b.request("POST", "/api/auth/password", body, "http://admin.local", false); got.Code != 419 {
+		t.Fatalf("csrf: %d", got.Code)
+	}
+	if got := b.request("POST", "/api/auth/password", strings.Replace(body, `"currentPassword":"admin"`, `"currentPassword":"wrong"`, 1), "http://admin.local", true); got.Code != 422 {
+		t.Fatalf("wrong: %d", got.Code)
+	}
+	if r.user.PasswordHash != "test:admin" {
+		t.Fatal("changed on invalid request")
+	}
+	if got := b.request("POST", "/api/auth/password", body, "http://admin.local", true); got.Code != 204 {
+		t.Fatalf("change: %d %s", got.Code, got.Body)
+	}
+	if r.user.PasswordHash != "test:changed-password" {
+		t.Fatal("wrong user or password")
+	}
+	if got := b.request("GET", "/api/auth/user", "", "", false); got.Code != 401 {
+		t.Fatalf("current session: %d", got.Code)
+	}
+	if got := other.request("GET", "/api/auth/user", "", "", false); got.Code != 401 {
+		t.Fatalf("other session: %d", got.Code)
+	}
+	b.request("GET", "/api/auth/csrf", "", "", false)
+	if got := b.request("POST", "/api/auth/login", `{"username":"admin","password":"changed-password"}`, "http://admin.local", true); got.Code != 200 {
+		t.Fatalf("new login: %d", got.Code)
+	}
+}
+func TestSelfPasswordDisabledAndUnauthenticated(t *testing.T) {
+	b, r := newBrowser(t, func(s *Server) { s.Config.AdminPasswordChangeEnabled = false })
+	b.request("GET", "/api/auth/csrf", "", "", false)
+	body := `{"currentPassword":"admin","newPassword":"changed-password","confirmPassword":"changed-password"}`
+	if got := b.request("POST", "/api/auth/password", body, "http://admin.local", true); got.Code != 401 {
+		t.Fatalf("auth: %d", got.Code)
+	}
+	b.request("POST", "/api/auth/login", `{"username":"admin","password":"admin"}`, "http://admin.local", true)
+	if got := b.request("GET", "/api/auth/user", "", "", false); !strings.Contains(got.Body.String(), `"passwordChangeEnabled":false`) {
+		t.Fatal(got.Body.String())
+	}
+	if got := b.request("POST", "/api/auth/password", body, "http://admin.local", true); got.Code != 403 {
+		t.Fatalf("disabled: %d", got.Code)
+	}
+	if r.user.PasswordHash != "test:admin" {
+		t.Fatal("disabled mutation")
+	}
+}
+
+func TestSelfPasswordValidationAndRateLimit(t *testing.T) {
+	b, r := newBrowser(t)
+	b.login(t)
+	r.user.Permissions = nil
+	for _, body := range []string{
+		`{"currentPassword":"admin","newPassword":"admin","confirmPassword":"admin"}`,
+		`{"currentPassword":"admin","newPassword":"new-password","confirmPassword":"different"}`,
+		`{"currentPassword":"admin","newPassword":"tiny","confirmPassword":"tiny"}`,
+	} {
+		expectStatus(t, b.request("POST", "/api/auth/password", body, "http://admin.local", true), 422)
+	}
+	body := `{"currentPassword":"wrong","newPassword":"new-password","confirmPassword":"new-password"}`
+	for i := 0; i < 5; i++ {
+		expectStatus(t, b.request("POST", "/api/auth/password", body, "http://admin.local", true), 422)
+	}
+	got := b.request("POST", "/api/auth/password", body, "http://admin.local", true)
+	expectStatus(t, got, 429)
+	if got.Header().Get("Retry-After") == "" {
+		t.Fatal("missing retry delay")
+	}
+	if r.user.PasswordHash != "test:admin" {
+		t.Fatal("invalid request changed password")
+	}
+	// Own-password changes do not require settings-management privileges.
+	r.attempts = 0
+	expectStatus(t, b.request("POST", "/api/auth/password", `{"currentPassword":"admin","newPassword":"new-password","confirmPassword":"new-password"}`, "http://admin.local", true), 204)
 }

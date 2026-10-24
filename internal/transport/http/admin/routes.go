@@ -14,6 +14,7 @@ func (s *Handler) Register(router *gin.Engine) {
 	router.POST("/api/auth/login", s.login)
 	router.GET("/api/auth/user", s.requireUser, s.current)
 	router.POST("/api/auth/logout", s.requireUser, s.logout)
+	router.POST("/api/auth/password", s.requireUser, s.changePassword)
 	group := router.Group("/api/players", s.requireUser, s.permission("players.view"))
 	group.GET("/accounts", s.accounts)
 	group.GET("/account-deletions", s.permission("players.edit"), s.accountDeletions)

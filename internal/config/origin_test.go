@@ -25,3 +25,22 @@ func TestAdminOriginCheckEnvironment(t *testing.T) {
 		})
 	}
 }
+
+func TestAdminPasswordChangeEnvironment(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		want  bool
+	}{{"", true}, {"true", true}, {"false", false}} {
+		values := map[string]string{}
+		if tc.value != "" {
+			values["ADMIN_PASSWORD_CHANGE_ENABLED"] = tc.value
+		}
+		var c Config
+		if err := env.ParseWithOptions(&c, env.Options{Environment: values}); err != nil {
+			t.Fatal(err)
+		}
+		if c.AdminPasswordChangeEnabled != tc.want {
+			t.Fatalf("%q: %v", tc.value, c.AdminPasswordChangeEnabled)
+		}
+	}
+}

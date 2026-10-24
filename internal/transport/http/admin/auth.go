@@ -132,7 +132,7 @@ func (s *Handler) current(c *gin.Context) {
 	if user.Can("*") {
 		access = "admin"
 	}
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"id": user.ID, "userid": user.Username, "username": user.Username, "name": user.Name, "access": access, "roles": user.Roles, "permissions": user.Permissions}})
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"id": user.ID, "userid": user.Username, "username": user.Username, "name": user.Name, "access": access, "roles": user.Roles, "permissions": user.Permissions, "passwordChangeEnabled": s.Config.AdminPasswordChangeEnabled}})
 }
 
 func (s *Handler) logout(c *gin.Context) {

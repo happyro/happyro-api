@@ -26,3 +26,9 @@ go build -mod=readonly -o bin/happyro-api ./cmd/happyro-api
 ## 游戏设置一致性
 
 `internal/settings.Service` 负责注册表校验、环境覆盖检查、修订锁、文件发布、命令提交及回读；`Recovery` 处理管理员确认，`internal/game.SettingsState` 保留地图服实例、修订和命令回执。受控参数测试必须覆盖整批拒绝且没有文件写入；运行结果不确定时不得用重试代替幂等和版本屏障。
+
+## 后台自助改密
+
+`POST /api/auth/password` 使用管理员会话、CSRF 和 `ADMIN_PASSWORD_CHANGE_ENABLED` 校验，只操作当前会话账号。`SelfPasswordService` 校验当前密码、新密码和确认值，按账号限制尝试频率；仓库以旧密码哈希和启用状态作原子条件，密码更新与审计在同一事务提交。审计失败回滚改密，并发请求不能覆盖已经改变的密码。
+
+`GET /api/auth/user` 返回部署能力 `passwordChangeEnabled`，无后台开关或专用配置表。改密后销毁当前会话，其他会话通过已有 `password_version` 校验失效；CLI 管理员维护不受网页入口开关限制。

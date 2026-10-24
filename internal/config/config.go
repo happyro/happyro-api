@@ -36,6 +36,7 @@ func (d Database) DSN() string {
 }
 
 type Config struct {
+	AdminPasswordChangeEnabled  bool          `env:"ADMIN_PASSWORD_CHANGE_ENABLED" envDefault:"true"`
 	AdminCSRFOriginCheckEnabled bool          `env:"ADMIN_CSRF_ORIGIN_CHECK_ENABLED" envDefault:"false"`
 	TimeZone                    string        `env:"APP_TIMEZONE" envDefault:"Asia/Shanghai"`
 	Listen                      string        `env:"HTTP_LISTEN" envDefault:":8080"`

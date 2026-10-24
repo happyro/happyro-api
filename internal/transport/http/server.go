@@ -11,6 +11,7 @@ import (
 	charactersapi "github.com/happyro/happyro-api/internal/characters"
 	"github.com/happyro/happyro-api/internal/config"
 	gameapi "github.com/happyro/happyro-api/internal/game"
+	"github.com/happyro/happyro-api/internal/identity"
 	rewardsapi "github.com/happyro/happyro-api/internal/rewards"
 	sessionauth "github.com/happyro/happyro-api/internal/session"
 	"github.com/happyro/happyro-api/internal/settings"
@@ -45,6 +46,7 @@ type Server struct {
 	Config            config.Config
 	Catalog           *catalog.Service
 	CatalogAssets     catalog.FilesystemAssets
+	Passwords         *identity.SelfPasswordService
 	Auth              *sessionauth.AdminService
 	Accounts          *accountsapi.Service
 	Characters        *charactersapi.Service
@@ -58,7 +60,7 @@ type Server struct {
 
 func (s *Server) Handler() (http.Handler, error) {
 	s.Responder = response.Responder{Logger: s.Logger, CatalogAssets: s.CatalogAssets}
-	adminModule := &adminhttp.Handler{Responder: response.Responder{Logger: s.Logger, CatalogAssets: s.CatalogAssets}, SettingsRecovery: s.SettingsRecovery, Settings: s.Settings, SettingsHistory: s.SettingsHistory, AccountDeletions: s.AccountDeletions, AccountBatches: s.AccountBatches, AccountManagement: s.AccountManagement, Grants: s.Grants, GrantLookup: s.GrantLookup, GrantHistory: s.GrantHistory, Audit: s.Audit, Config: s.Config, Catalog: s.Catalog, Auth: s.Auth, Accounts: s.Accounts, Characters: s.Characters, Maps: s.Maps, GameGateway: s.GameGateway, GameCommands: s.GameCommands, Snapshots: s.Snapshots, Sessions: s.Sessions}
+	adminModule := &adminhttp.Handler{Responder: response.Responder{Logger: s.Logger, CatalogAssets: s.CatalogAssets}, SettingsRecovery: s.SettingsRecovery, Settings: s.Settings, SettingsHistory: s.SettingsHistory, AccountDeletions: s.AccountDeletions, AccountBatches: s.AccountBatches, AccountManagement: s.AccountManagement, Grants: s.Grants, GrantLookup: s.GrantLookup, GrantHistory: s.GrantHistory, Audit: s.Audit, Config: s.Config, Catalog: s.Catalog, Auth: s.Auth, Passwords: s.Passwords, Accounts: s.Accounts, Characters: s.Characters, Maps: s.Maps, GameGateway: s.GameGateway, GameCommands: s.GameCommands, Snapshots: s.Snapshots, Sessions: s.Sessions}
 	playerModule := &playerhttp.Handler{Responder: response.Responder{Logger: s.Logger, CatalogAssets: s.CatalogAssets}, Settings: s.Settings, PlayerLimits: s.PlayerLimits, GameAuth: s.GameAuth, PlayerAccess: s.PlayerAccess, PlayerCharacters: s.PlayerCharacters, PlayerRewards: s.PlayerRewards, Catalog: s.Catalog, Maps: s.Maps, GameGateway: s.GameGateway}
 	router := gin.New()
 	if err := router.SetTrustedProxies(s.Config.TrustedProxies); err != nil {
