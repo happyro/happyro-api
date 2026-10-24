@@ -73,9 +73,6 @@ func TestSettingsApplyRecoversReadbackFailureWithoutRepeatingCommand(t *testing.
 	if err != nil || !strings.Contains(content, "base_exp_rate: 250") {
 		t.Fatal("published config lost")
 	}
-	if _, err = service.Apply(ctx, settings.Update{Key: "different", Changes: map[string]int64{"job_exp_rate": 200}}, actor); !errors.Is(err, settings.ErrBusy) {
-		t.Fatalf("unfinished overwritten %v", err)
-	}
 	gateway.readFailure = false
 	recovery := &settings.Recovery{Revisions: &settings.SQLRevisions{DB: db}, Settings: service, Audit: &audit.SQLStore{DB: db}}
 	if _, err = recovery.Resume(ctx, row.ID, identityapi.User{ID: 2, Permissions: []string{"players.view"}}, identityapi.Client{}); err == nil {

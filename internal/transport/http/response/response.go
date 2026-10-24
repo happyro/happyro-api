@@ -205,6 +205,8 @@ func (s *Responder) PlayerError(c *gin.Context, err error) {
 
 func (s *Responder) SettingError(c *gin.Context, err error) {
 	switch {
+	case errors.Is(err, settings.ErrAutoRestored):
+		s.Fail(c, 409, "settings_auto_restored", err.Error())
 	case errors.Is(err, settings.ErrRevisionNotFound):
 		s.Fail(c, 404, "revision_not_found", err.Error())
 	case errors.Is(err, settings.ErrBusy):
