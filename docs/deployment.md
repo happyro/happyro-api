@@ -58,15 +58,15 @@ Go API 经 HTTP 调用 web-server，不直接连接 map-server Socket；共享�
 在根仓库执行构建与配置生成：
 
 ```bash
-mkdir -p work/runtime/native/bin
-(cd repos/happyro-api && go build -o ../../work/runtime/native/bin/happyro-api ./cmd/happyro-api)
+mkdir -p work/build/api
+(cd repos/happyro-api && go build -o ../../work/build/api/happyro-api ./cmd/happyro-api)
 python3 tools/deployment/native_api.py prepare --workspace . \
-  --binary work/runtime/native/bin/happyro-api \
+  --binary work/build/api/happyro-api \
   --environment work/runtime/native/api.env \
   --output work/runtime/native/launchd/local.happyro.api.go.plist
 ```
 
-生成工具只创建 plist，不启动服务，不读取或复制环境中的密钥，也不覆盖已有输出。先在显式加载环境后执行新管理库迁移、初始化与完整资料导入；游戏库由操作账号完成上述游戏库 SQL 初始化。确认 Go 程序可启动后，将生成配置安装为 `local.happyro.api.plist` 并加载；更新已有配置前先停止对应服务。不要覆盖正在运行的二进制；更新时先停止对应服务。
+生成工具只创建 plist，不启动服务，不读取或复制环境中的密钥，也不覆盖已有输出。先在显式加载环境后执行新管理库迁移、初始化与完整资料导入；游戏库由操作账号完成上述游戏库 SQL 初始化。上述示例让 plist 明确使用暂存构建路径；长期安装可先停止服务，将二进制复制到实际安装路径后用该绝对路径生成配置。确认 Go 程序可启动后，将生成配置安装为 `local.happyro.api.plist` 并加载；更新已有配置前先停止对应服务。不要覆盖正在运行的二进制；更新时先停止对应服务。
 
 ## 游戏设置与部署覆盖
 
