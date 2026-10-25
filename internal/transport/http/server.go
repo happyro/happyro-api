@@ -20,8 +20,6 @@ import (
 	"github.com/happyro/happyro-api/internal/transport/http/response"
 	"go.uber.org/zap"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -83,7 +81,9 @@ func (s *Server) Handler() (http.Handler, error) {
 	for _, route := range admin.Routes() {
 		router.Handle(route.Method, route.Path, adminHandler)
 	}
-	router.NoRoute(s.frontend)
+	router.NoRoute(func(c *gin.Context) {
+		s.Fail(c, http.StatusNotFound, "not_found", "接口不存在。")
+	})
 	return router, nil
 }
 
@@ -121,47 +121,4 @@ func (s *Server) protect(c *gin.Context) {
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1<<20)
 	c.Next()
-}
-
-func (s *Server) frontend(c *gin.Context) {
-	if strings.HasPrefix(c.Request.URL.Path, "/api/") || c.Request.Method != http.MethodGet {
-		s.Fail(c, http.StatusNotFound, "not_found", "接口不存在。")
-		return
-	}
-	root, err := os.OpenRoot(s.Config.FrontendDir)
-	if err != nil {
-		s.Fail(c, http.StatusNotFound, "not_found", "前端资源尚未构建。")
-		return
-	}
-	defer root.Close()
-	path := strings.TrimPrefix(c.Request.URL.Path, "/")
-	if path == "" {
-		path = "index.html"
-	}
-	file, err := root.Open(path)
-	if err == nil {
-		info, statErr := file.Stat()
-		if statErr == nil && info.IsDir() {
-			file.Close()
-			file, err = root.Open(filepath.Join(path, "index.html"))
-		}
-	}
-	if err != nil {
-		if filepath.Ext(path) != "" {
-			c.AbortWithStatus(http.StatusNotFound)
-			return
-		}
-		file, err = root.Open("index.html")
-	}
-	if err != nil {
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-	defer file.Close()
-	stat, err := file.Stat()
-	if err != nil || stat.IsDir() {
-		c.AbortWithStatus(http.StatusNotFound)
-		return
-	}
-	http.ServeContent(c.Writer, c.Request, stat.Name(), stat.ModTime(), file)
 }

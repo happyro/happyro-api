@@ -21,7 +21,7 @@ go build -mod=readonly -o bin/happyro-api ./cmd/happyro-api
 
 ## HTTP 模块边界
 
-保持一个 Go 项目和一个部署进程。`internal/transport/http/admin/routes.go` 注册后台接口，`internal/transport/http/player/routes.go` 注册玩家冒险工具接口，共用领域服务。后台路由独立加载 SCS 会话并执行 CSRF 与权限检查；玩家路由只使用游戏身份认证和业务限流，不加载管理员会话。健康检查和前端静态文件也不依赖管理员会话存储。通用请求日志、安全响应头和请求体限制由入口统一处理。当前不引入服务间 HTTP 调用或额外框架。
+保持一个 Go 项目和一个部署进程。`internal/transport/http/admin/routes.go` 注册后台接口，`internal/transport/http/player/routes.go` 注册玩家冒险工具接口，共用领域服务。后台路由独立加载 SCS 会话并执行 CSRF 与权限检查；玩家路由只使用游戏身份认证和业务限流，不加载管理员会话。健康检查不依赖管理员会话存储；前端静态文件由独立 Admin 服务提供。通用请求日志、安全响应头和请求体限制由入口统一处理。当前不引入服务间 HTTP 调用或额外框架。
 
 ## 游戏设置一致性
 
@@ -41,4 +41,8 @@ go build -mod=readonly -o bin/happyro-api ./cmd/happyro-api
 
 `resources/game-data/monsters/renewal.json` 的中文名来自已审定的客户端／服务端名称表，ID 与 AegisName 为关联依据；英文名称使用固定 Git 基线，不从中文猜译。源文件和目录版本记录在快照元数据中。
 
-生成由根仓库资源工具负责，验证使用 `python3 -m tools.resources.monsters.verify_application verify --no-color`。改名不修改战斗数值、掉落、内部身份或权限。刷新磁盘快照后，通过完整 `catalog import` 将四份资料原子发布；内容不变时保留当前代次。不要以重新启动 HTTP 进程代替目录导入。
+生成由根仓库资源工具负责，验证使用 `python3 -m tools.localization.monsters.verify_application verify --no-color`。改名不修改战斗数值、掉落、内部身份或权限。刷新磁盘快照后，通过完整 `catalog import` 将四份资料原子发布；内容不变时保留当前代次。不要以重新启动 HTTP 进程代替目录导入。
+
+## 自定义目录生成器
+
+镜像中的 Python 辅助程序由本仓库 `tools/catalogs.py` 提供；其声明解析、覆盖和 Imports 行为通过 `python3 -m unittest discover -s tools -p 'test_*.py'` 检查（需要 PyYAML）。它只生成待导入快照，不执行 NPC 脚本。完整 HappyRO 工作区的统一工具检查也会执行该测试。

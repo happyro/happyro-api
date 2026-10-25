@@ -9,7 +9,7 @@ container_help() {
     printf '%bCommands%b\n' "$yellow" "$reset"
     printf '  %binitialize%b              Migrate, create the initial account and import catalogs\n' "$green" "$reset"
     printf '  %brefresh-custom-catalogs%b  Generate and atomically import all catalogs\n' "$green" "$reset"
-    printf '  %bserve%b                   Start the Go API and frontend server\n' "$green" "$reset"
+    printf '  %bserve%b                   Start the Go API server\n' "$green" "$reset"
     printf '  %busers | migrate | init | catalog%b  Go management commands\n\n' "$green" "$reset"
     printf '%bExamples%b\n  %binitialize --no-color%b\n  %busers --help --no-color%b\n\n' "$yellow" "$reset" "$example" "$reset" "$example" "$reset"
 }

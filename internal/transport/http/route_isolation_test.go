@@ -5,8 +5,6 @@ import (
 	sessionauth "github.com/happyro/happyro-api/internal/session"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/alexedwards/scs/v2"
@@ -24,12 +22,7 @@ func (s *unavailableSessionStore) Find(string) ([]byte, bool, error) {
 
 func TestPlayerAPIAndHealthDoNotLoadAdministratorSessions(t *testing.T) {
 	store := &unavailableSessionStore{}
-	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte("frontend"), 0644); err != nil {
-		t.Fatal(err)
-	}
 	b, _ := newBrowser(t, func(s *Server) {
-		s.Config.FrontendDir = root
 		store.Store = s.Sessions.Store
 		s.Sessions.Store = store
 		s.PlayerLimits = &testAdventureLimit{}
@@ -45,7 +38,7 @@ func TestPlayerAPIAndHealthDoNotLoadAdministratorSessions(t *testing.T) {
 		w := httptest.NewRecorder()
 		b.handler.ServeHTTP(w, r)
 		expected := http.StatusOK
-		if path == "/api/missing" {
+		if path == "/api/missing" || path == "/" {
 			expected = http.StatusNotFound
 		}
 		expectStatus(t, w, expected)

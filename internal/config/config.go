@@ -41,7 +41,6 @@ type Config struct {
 	TimeZone                    string        `env:"APP_TIMEZONE" envDefault:"Asia/Shanghai"`
 	Listen                      string        `env:"HTTP_LISTEN" envDefault:":8080"`
 	PublicURL                   string        `env:"APP_URL" envDefault:"http://localhost:8080"`
-	FrontendDir                 string        `env:"FRONTEND_DIR" envDefault:"../happyro-admin/dist"`
 	LogLevel                    string        `env:"LOG_LEVEL" envDefault:"info"`
 	AdminDB                     Database      `envPrefix:"DB_"`
 	GameDB                      Database      `envPrefix:"GAME_DB_"`

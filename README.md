@@ -11,7 +11,7 @@ HappyRO 的 Go 后端，为管理后台和游戏内冒险工具提供 HTTP API�
 | 管理后台 API | 管理员账号、角色权限、审计、玩家与角色管理、游戏资料、物品与邮件发放、运营设置 |
 | 玩家工具 API | 冒险工具资料查询、角色操作、物品与金币发放、游戏设置；按游戏身份和功能策略授权 |
 | 运维 CLI | 管理库迁移、初始管理员创建、管理员密码管理、资料目录原子导入 |
-| HTTP 服务 | 健康检查，以及构建后的 Admin 前端静态文件 |
+| HTTP 服务 | 健康检查、后台管理接口与玩家接口；不提供前端静态文件 |
 
 [happyro-admin](https://github.com/happyro/happyro-admin) 维护 React / Umi 管理前端；[happyro-gateway](https://github.com/happyro/happyro-gateway) 为游戏浏览器代理玩家 API；[happyro-server](https://github.com/happyro/happyro-server) 运行 rAthena 登录、角色、地图和 Web 服务。API 经 Game Control 调用游戏服务，在线角色与世界状态由地图服最终裁决。
 
@@ -38,7 +38,6 @@ go build -mod=readonly -o bin/happyro-api ./cmd/happyro-api
 | `HTTP_LISTEN`、`APP_URL` | 监听地址与后台公开地址；开启来源校验时，浏览器来源必须与 APP_URL 一致 |
 | `ADMIN_CSRF_ORIGIN_CHECK_ENABLED` | 默认 `false`，不校验 Origin 和 Sec-Fetch-Site；设为 `true` 启用来源校验。两种模式均要求有效 CSRF Token |
 | `ADMIN_PASSWORD_CHANGE_ENABLED` | 默认 `true`，允许后台自助改密；演示环境设置 `false`，隐藏入口并拒绝改密请求，CLI 改密不受影响 |
-| `FRONTEND_DIR` | Admin 构建产物目录；前端开发代理由 Admin 仓库维护 |
 | `DB_*`、`GAME_DB_*` | 独立的管理库与游戏库连接 |
 | `GAME_CONTROL_BASE_URL`、`GAME_CONTROL_TOKEN` | 与游戏服通信的地址和密钥 |
 | `ADMIN_INITIAL_USERNAME`、`ADMIN_INITIAL_PASSWORD` | 空管理库初始化时创建的管理员，不覆盖已有账号 |
@@ -97,3 +96,7 @@ go vet -mod=readonly ./...
 - [部署说明](docs/deployment.md)：初始化、环境配置、原生服务与容器部署。
 - [变更记录](changelog/)：本仓库改动。
 - [HappyRO 发布流程](https://github.com/happyro/happyro/blob/main/docs/operations/docker-release.md)：跨仓库构建、双架构镜像和离线交付。
+
+## 容器职责
+
+`happyro-api` 仅包含 Go API、迁移及资料初始化所需文件，不构建或提供 Admin 页面。后台由独立 `happyro-admin` Nginx 镜像提供，并同源代理 `/api`；游戏由 Gateway 代理玩家接口。离线部署仅 Admin 和 Gateway 暴露 Web 端口，API 使用容器网络。

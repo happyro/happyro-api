@@ -2,7 +2,11 @@
 
 ## Docker 交付
 
-API 是 HappyRO 四组镜像之一，和 Gateway、Server、Database 一起由[根仓库发布流程](https://github.com/happyro/happyro/blob/main/docs/operations/docker-release.md)全量构建。应用版本统一来自根仓库 `deploy/docker/VERSION`。离线包的安装与升级见[公开部署说明](https://happyro.kugarocks.com/deploy/docker)。
+API 是 HappyRO 五类镜像之一，和 Gateway、Server、Admin、Database 一起由[根仓库发布流程](https://github.com/happyro/happyro/blob/main/docs/operations/docker-release.md)全量构建。应用版本统一来自根仓库 `deploy/docker/VERSION`。离线包的安装与升级见[公开部署说明](https://happyro.kugarocks.com/deploy/docker)。
+
+根仓库 Compose 将 API 与 Admin 接入专用代理网络，`HTTP_TRUSTED_PROXIES` 仅信任 `ADMIN_PROXY_IP` 指定的 Admin 地址；原生部署需按实际代理地址单独配置该变量，不能信任任意来源。
+
+API 镜像仅提供 Go 接口、迁移与资料初始化；独立 Admin Nginx 镜像提供页面并同源代理 `/api` 到 `api:8080`。API 不映射宿主机端口，健康检查使用 `/api/health`；Admin 默认通过宿主机 8000 端口访问，健康检查使用 `/healthz`。
 
 Docker 中 Go API 通过内部 web-api 服务访问 Game Control，共享配置文件用于倍率等设置的持久化；不要把本机 loopback 地址直接用于跨容器连接。数据库、图片资源及配置挂载由根仓库模板定义。
 
@@ -53,14 +57,14 @@ Go API 经 HTTP 调用 web-server，不直接连接 map-server Socket；共享�
 
 ## macOS Go 服务切换
 
-先使用 Go 环境模板创建独立的 `work/runtime/native/api.env`，明确新管理库、游戏库连接、共享设置目录、`HTTP_LISTEN=127.0.0.1:18081` 和前端产物目录。环境文件须是可被 Bash 加载的受信任赋值文件；限制文件权限，禁止提交凭据。
+先使用 Go 环境模板创建独立的 `work/runtime/native/api.env`，明确新管理库、游戏库连接、共享设置目录和 `HTTP_LISTEN=127.0.0.1:18081`。Admin 前端由独立服务提供，并将 `/api` 代理到 Go API；API 不配置前端产物目录。环境文件须是可被 Bash 加载的受信任赋值文件；限制文件权限，禁止提交凭据。
 
 在根仓库执行构建与配置生成：
 
 ```bash
 mkdir -p work/build/api
 (cd repos/happyro-api && go build -o ../../work/build/api/happyro-api ./cmd/happyro-api)
-python3 tools/deployment/native_api.py prepare --workspace . \
+python3 tools/operations/native_api.py prepare --workspace . \
   --binary work/build/api/happyro-api \
   --environment work/runtime/native/api.env \
   --output work/runtime/native/launchd/local.happyro.api.go.plist
