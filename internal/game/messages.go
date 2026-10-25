@@ -54,6 +54,9 @@ var messages = map[string]string{
 	"navigation_map_forbidden":         "角色或地图规则禁止此次传送。",
 	"navigation_no_cell":               "NPC 附近没有可用落点。",
 	"navigation_invalid_coordinate":    "坐标超出地图范围。",
+	"navigation_dialogue_active":       "请先结束当前 NPC 对话，再尝试传送。",
+	"navigation_no_safe_cell":          "目标附近没有安全落点，请稍后重试。",
+	"navigation_map_not_ready":         "地图尚未加载完成，请稍后重试。",
 	"navigation_failed":                "角色传送失败。",
 	"navigation_same_map_required":     "只能在目标角色当前地图内寻路。",
 }
