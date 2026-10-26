@@ -31,7 +31,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 WORKDIR /opt/api
 COPY --from=backend --chmod=755 /out/happyro-api /usr/local/bin/happyro-api
 COPY --from=payload /payload/ /
-ENV GIN_MODE=release HTTP_LISTEN=:8080 LOG_LEVEL=info
+ENV GIN_MODE=release HAPPYRO_API_LISTEN_ADDRESS=:8080 HAPPYRO_API_LOG_LEVEL=info
 EXPOSE 8080
 ENTRYPOINT ["happyro-entrypoint"]
 CMD ["serve"]

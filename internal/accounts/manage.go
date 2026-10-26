@@ -44,11 +44,11 @@ type AccountWriter interface {
 	Password(context.Context, int64, string) (database.Row, error)
 }
 type Management struct {
-	Registration         RegistrationStore
-	RegistrationEditable bool
-	GM                   GMWriter
-	Accounts             AccountWriter
-	Audit                audit.Writer
+	Registration                     RegistrationStore
+	RegistrationDefaultGroupEditable bool
+	GM                               GMWriter
+	Accounts                         AccountWriter
+	Audit                            audit.Writer
 }
 
 // Match HappyRO client RegistrationValidation.js and PACKETVER=20211103.
@@ -134,12 +134,16 @@ func (s *Management) mutate(ctx context.Context, action string, metadata map[str
 	if user.ID <= 0 {
 		return nil, errors.New("invalid admin actor")
 	}
+	return s.mutateEvent(ctx, action, metadata, &user.ID, user.Username, client, run)
+}
+
+func (s *Management) mutateEvent(ctx context.Context, action string, metadata map[string]any, actorID *int64, username string, client identityapi.Client, run func() (database.Row, error)) (database.Row, error) {
 	token := make([]byte, 16)
 	if _, err := rand.Read(token); err != nil {
 		return nil, err
 	}
 	operation := "player:" + hex.EncodeToString(token)
-	event := audit.Event{OperationKey: operation + ":requested", ActorID: &user.ID, Username: user.Username, Action: action + ".requested", IP: client.IP, UserAgent: client.UserAgent, Metadata: metadata}
+	event := audit.Event{OperationKey: operation + ":requested", ActorID: actorID, Username: username, Action: action + ".requested", IP: client.IP, UserAgent: client.UserAgent, Metadata: metadata}
 	// Admin and game databases cannot commit atomically, and login is MyISAM.
 	// Persist intent before writing, then a result; an interrupted operation stays
 	// visible as an unresolved intent instead of losing its audit trail.
@@ -151,7 +155,7 @@ func (s *Management) mutate(ctx context.Context, action string, metadata map[str
 	event.Action = action
 	if writeErr != nil {
 		event.Action += ".unconfirmed"
-	} else if row != nil {
+	} else if row != nil && row["account_id"] != nil {
 		metadata["account_id"] = row["account_id"]
 	}
 	persist, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)

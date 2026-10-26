@@ -35,13 +35,13 @@ go build -mod=readonly -o bin/happyro-api ./cmd/happyro-api
 
 | 配置 | 用途 |
 | --- | --- |
-| `HTTP_LISTEN`、`APP_URL` | 监听地址与后台公开地址；开启来源校验时，浏览器来源必须与 APP_URL 一致 |
-| `ADMIN_CSRF_ORIGIN_CHECK_ENABLED` | 默认 `false`，不校验 Origin 和 Sec-Fetch-Site；设为 `true` 启用来源校验。两种模式均要求有效 CSRF Token |
-| `REGISTRATION_SETTINGS_EDITABLE` | 默认 `false`；是否允许后台修改新注册游戏账号的默认权限组，锁定时 API 拒绝修改 |
-| `ADMIN_PASSWORD_CHANGE_ENABLED` | 默认 `true`，允许后台自助改密；演示环境设置 `false`，隐藏入口并拒绝改密请求，CLI 改密不受影响 |
+| `HAPPYRO_API_LISTEN_ADDRESS`、`HAPPYRO_ADMIN_PUBLIC_URL` | 监听地址与后台公开地址；开启来源校验时，浏览器来源必须与 HAPPYRO_ADMIN_PUBLIC_URL 一致 |
+| `HAPPYRO_ADMIN_CSRF_ORIGIN_CHECK_ENABLED` | 默认 `false`，不校验 Origin 和 Sec-Fetch-Site；设为 `true` 启用来源校验。两种模式均要求有效 CSRF Token |
+| `HAPPYRO_REGISTRATION_DEFAULT_GROUP_EDITABLE` | 默认 `false`；是否允许后台修改新注册游戏账号的默认权限组，锁定时 API 拒绝修改 |
+| `HAPPYRO_ADMIN_PASSWORD_CHANGE_ENABLED` | 默认 `true`，允许后台自助改密；演示环境设置 `false`，隐藏入口并拒绝改密请求，CLI 改密不受影响 |
 | `DB_*`、`GAME_DB_*` | 独立的管理库与游戏库连接 |
-| `GAME_CONTROL_BASE_URL`、`GAME_CONTROL_TOKEN` | 与游戏服通信的地址和密钥 |
-| `ADMIN_INITIAL_USERNAME`、`ADMIN_INITIAL_PASSWORD` | 空管理库初始化时创建的管理员，不覆盖已有账号 |
+| `HAPPYRO_API_GAME_CONTROL_UPSTREAM_URL`、`HAPPYRO_GAME_CONTROL_TOKEN` | 与游戏服通信的地址和密钥 |
+| `HAPPYRO_ADMIN_INITIAL_USERNAME`、`HAPPYRO_ADMIN_INITIAL_PASSWORD` | 空管理库初始化时创建的管理员，不覆盖已有账号 |
 
 完整配置以环境模板为准。游戏库结构由 Server 的 `sql-files/` 维护，API 检查所需结构，不执行游戏库建表或迁移。
 
@@ -101,3 +101,5 @@ go vet -mod=readonly ./...
 ## 容器职责
 
 `happyro-api` 仅包含 Go API、迁移及资料初始化所需文件，不构建或提供 Admin 页面。后台由独立 `happyro-admin` Nginx 镜像提供，并同源代理 `/api`；游戏由 Gateway 代理玩家接口。离线部署仅 Admin 和 Gateway 暴露 Web 端口，API 使用容器网络。
+
+`HAPPYRO_REGISTRATION_DEFAULT_GROUP_ID` 留空保留数据库策略，设为 `0`（普通玩家）或 `99`（GM）时在每次 API 启动应用；只影响之后新注册的账号，不修改已有账号。`HAPPYRO_REGISTRATION_DEFAULT_GROUP_EDITABLE` 独立控制后台编辑，设为 `true` 时即使配置了启动默认组也允许修改；下次 API 重启仍会重新应用非空的启动默认组。

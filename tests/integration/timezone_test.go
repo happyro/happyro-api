@@ -52,7 +52,7 @@ func TestTimestampProjectionsAreUnambiguousUTC(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grants, err := (&rewards.SQLRecords{DB: db}).History(ctx, p)
+	grants, err := (&rewards.SQLRecords{DB: db}).History(ctx, p, "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -29,7 +29,7 @@ go build -mod=readonly -o bin/happyro-api ./cmd/happyro-api
 
 ## 后台自助改密
 
-`POST /api/auth/password` 使用管理员会话、CSRF 和 `ADMIN_PASSWORD_CHANGE_ENABLED` 校验，只操作当前会话账号。`SelfPasswordService` 校验当前密码、新密码和确认值，按账号限制尝试频率；仓库以旧密码哈希和启用状态作原子条件，密码更新与审计在同一事务提交。审计失败回滚改密，并发请求不能覆盖已经改变的密码。
+`POST /api/auth/password` 使用管理员会话、CSRF 和 `HAPPYRO_ADMIN_PASSWORD_CHANGE_ENABLED` 校验，只操作当前会话账号。`SelfPasswordService` 校验当前密码、新密码和确认值，按账号限制尝试频率；仓库以旧密码哈希和启用状态作原子条件，密码更新与审计在同一事务提交。审计失败回滚改密，并发请求不能覆盖已经改变的密码。
 
 `GET /api/auth/user` 返回部署能力 `passwordChangeEnabled`，无后台开关或专用配置表。改密后销毁当前会话，其他会话通过已有 `password_version` 校验失效；CLI 管理员维护不受网页入口开关限制。
 

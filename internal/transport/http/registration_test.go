@@ -41,7 +41,7 @@ func TestRegistrationSettingsLockCannotBeBypassedWithDirectRequests(t *testing.T
 	if !strings.Contains(locked.Body.String(), "registration_settings_locked") || store.writes != 0 {
 		t.Fatal(locked.Body.String())
 	}
-	management.RegistrationEditable = true
+	management.RegistrationDefaultGroupEditable = true
 	expectStatus(t, b.request("PUT", path, body, "", true), 200)
 	expectStatus(t, b.request("PUT", path, body, "", true), 409)
 	expectStatus(t, b.request("PUT", path, `{"default_group_id":100,"expected_group_id":0}`, "", true), 422)

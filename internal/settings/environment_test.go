@@ -25,10 +25,10 @@ func (g environmentGateway) FenceSettings(context.Context, string, uint64) error
 func TestEnvironmentOverrideRejectsBeforePublishing(t *testing.T) {
 	id := int64(1)
 	// Nil file/store/command dependencies prove no write or revision is attempted.
-	service := Service{Gateway: environmentGateway{state: gameapi.SettingsState{EnvironmentOverrides: map[string]string{"navigation_teleport_policy": "HAPPYRO_NAVIGATION_TELEPORT_POLICY"}}}}
+	service := Service{Gateway: environmentGateway{state: gameapi.SettingsState{EnvironmentOverrides: map[string]string{"navigation_teleport_policy": "HAPPYRO_GAME_NAVIGATION_TELEPORT_POLICY"}}}}
 	_, err := service.Apply(context.Background(), Update{Key: "test", Changes: map[string]int64{"base_exp_rate": 200, "navigation_teleport_policy": 2}}, gameapi.Actor{AdminUserID: &id})
 	var validation *gameapi.ValidationError
-	if !errors.As(err, &validation) || !strings.Contains(validation.Message, "HAPPYRO_NAVIGATION_TELEPORT_POLICY") {
+	if !errors.As(err, &validation) || !strings.Contains(validation.Message, "HAPPYRO_GAME_NAVIGATION_TELEPORT_POLICY") {
 		t.Fatalf("expected named environment lock: %v", err)
 	}
 }

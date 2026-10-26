@@ -44,7 +44,7 @@ func TestSettingsStateRequiresCompleteExecutionEvidence(t *testing.T) {
 		{"success without revision", func(r map[string]any) { r["revision"] = 0 }, false},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
-			result := map[string]any{"environment_overrides": map[string]string{"navigation_teleport_policy": "HAPPYRO_NAVIGATION_TELEPORT_POLICY"}, "values": map[string]int64{"base_exp_rate": 325}, "instance_id": "0123456789abcdef0123456789abcdef", "revision": uint64(9007199254740993), "last_command_id": "original-command", "last_status": "succeeded"}
+			result := map[string]any{"environment_overrides": map[string]string{"navigation_teleport_policy": "HAPPYRO_GAME_NAVIGATION_TELEPORT_POLICY"}, "values": map[string]int64{"base_exp_rate": 325}, "instance_id": "0123456789abcdef0123456789abcdef", "revision": uint64(9007199254740993), "last_command_id": "original-command", "last_status": "succeeded"}
 			scenario.change(result)
 			raw, err := json.Marshal(map[string]any{"data": map[string]any{"result": result}})
 			if err != nil {
@@ -70,7 +70,7 @@ func TestSettingsStateRequiresCompleteExecutionEvidence(t *testing.T) {
 			if state.Values["base_exp_rate"] != 325 || state.LastStatus != result["last_status"] {
 				t.Fatalf("wrong state: %#v", state)
 			}
-			if state.EnvironmentOverrides["navigation_teleport_policy"] != "HAPPYRO_NAVIGATION_TELEPORT_POLICY" {
+			if state.EnvironmentOverrides["navigation_teleport_policy"] != "HAPPYRO_GAME_NAVIGATION_TELEPORT_POLICY" {
 				t.Fatal("environment override metadata lost")
 			}
 			if scenario.name == "success" && state.Revision != 9007199254740993 {

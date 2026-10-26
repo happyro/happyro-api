@@ -9,7 +9,7 @@ import (
 func TestServerRequiresExplicitAbsoluteBattleConfigurationPath(t *testing.T) {
 	for _, path := range []string{"", "  ", "battle_conf.txt", "../server/conf/import/battle_conf.txt"} {
 		cfg := Config{BattleConfigPath: path}
-		if err := cfg.ValidateServer(); err == nil || !strings.Contains(err.Error(), "GAME_SERVER_BATTLE_CONFIG_PATH") {
+		if err := cfg.ValidateServer(); err == nil || !strings.Contains(err.Error(), "HAPPYRO_API_BATTLE_CONFIG_PATH") {
 			t.Fatalf("path %q: %v", path, err)
 		}
 	}

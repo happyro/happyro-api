@@ -34,7 +34,7 @@ func Serve(ctx context.Context, cfg config.Config, db *sqlx.DB) error {
 	logConfig := zap.NewProductionConfig()
 	logConfig.OutputPaths = []string{"stdout"}
 	if err := logConfig.Level.UnmarshalText([]byte(cfg.LogLevel)); err != nil {
-		return errors.New("invalid LOG_LEVEL")
+		return errors.New("invalid HAPPYRO_API_LOG_LEVEL")
 	}
 	logger, err := logConfig.Build()
 	if err != nil {
@@ -67,6 +67,7 @@ func Serve(ctx context.Context, cfg config.Config, db *sqlx.DB) error {
 	if err = database.CheckRuntime(ctx, game); err != nil {
 		return err
 	}
+	registrationManagement := &accountsapi.Management{Registration: &accountsapi.SQLWriter{DB: game}, RegistrationDefaultGroupEditable: cfg.RegistrationDefaultGroupEditable, GM: &accountsapi.SQLWriter{DB: game}, Accounts: &accountsapi.SQLWriter{DB: game}, Audit: &audit.SQLStore{DB: db}}
 	logDBConfig := cfg.GameDB
 	logDBConfig.Name = cfg.GameLogDatabase
 	gameLog, err := database.Open(ctx, logDBConfig)
@@ -108,9 +109,12 @@ func Serve(ctx context.Context, cfg config.Config, db *sqlx.DB) error {
 	deletions := &accountsapi.Deletions{Store: &accountsapi.SQLDeletions{DB: game}, Accounts: &accountsapi.SQLWriter{DB: game}, Audit: &audit.SQLStore{DB: db}}
 	revisions := &settings.SQLRevisions{DB: db}
 	settingsService := &settings.Service{Revisions: revisions, File: settings.File{Path: cfg.BattleConfigPath}, Commands: commands, Gateway: gateway}
-	app := &httptransport.Server{SettingsRecovery: &settings.Recovery{Revisions: revisions, Settings: settingsService, Audit: &audit.SQLStore{DB: db}}, Settings: settingsService, SettingsHistory: revisions, PlayerLimits: &sessionauth.SQLPlayerLimiter{DB: db}, GameAuth: &sessionauth.GameAuthentication{Repository: &sessionauth.SQLGameIdentity{DB: game}, AdminGroups: cfg.GameAdminGroups}, PlayerAccess: &sessionauth.PlayerAccess{Gateway: gateway}, PlayerCharacters: &charactersapi.PlayerService{Access: &sessionauth.PlayerAccess{Gateway: gateway}, Gateway: gateway, Commands: commands}, PlayerRewards: &rewardsapi.PlayerService{Access: &sessionauth.PlayerAccess{Gateway: gateway}, Rewards: grantService}, AccountDeletions: deletions, AccountBatches: &accountsapi.Batches{Deletions: deletions, Records: &accountsapi.SQLBatches{DB: db}, Accounts: &accountsapi.SQLWriter{DB: game}, Commands: commands, Audit: &audit.SQLStore{DB: db}}, AccountManagement: &accountsapi.Management{Registration: &accountsapi.SQLWriter{DB: game}, RegistrationEditable: cfg.RegistrationSettingsEditable, GM: &accountsapi.SQLWriter{DB: game}, Accounts: &accountsapi.SQLWriter{DB: game}, Audit: &audit.SQLStore{DB: db}}, Grants: grantService, GrantHistory: records, GrantLookup: &rewardsapi.Lookup{Items: catalogs, Targets: &rewardsapi.SQLTargets{DB: game}}, Audit: &audit.SQLStore{DB: db}, Catalog: catalogs, CatalogAssets: assets, GameCommands: commands, Snapshots: snapshots, Maps: maps, GameGateway: gateway, Config: cfg, Auth: service, Passwords: identityapi.NewSelfPasswordService(&identityapi.SQLRepository{DB: db}, identityapi.Argon2id{}), Sessions: sessions, Logger: logger, Accounts: accountService, Characters: characterService}
+	app := &httptransport.Server{SettingsRecovery: &settings.Recovery{Revisions: revisions, Settings: settingsService, Audit: &audit.SQLStore{DB: db}}, Settings: settingsService, SettingsHistory: revisions, PlayerLimits: &sessionauth.SQLPlayerLimiter{DB: db}, GameAuth: &sessionauth.GameAuthentication{Repository: &sessionauth.SQLGameIdentity{DB: game}, AdminGroups: cfg.GameAdminGroups}, PlayerAccess: &sessionauth.PlayerAccess{Gateway: gateway}, PlayerCharacters: &charactersapi.PlayerService{Access: &sessionauth.PlayerAccess{Gateway: gateway}, Gateway: gateway, Commands: commands}, PlayerRewards: &rewardsapi.PlayerService{Access: &sessionauth.PlayerAccess{Gateway: gateway}, Rewards: grantService}, AccountDeletions: deletions, AccountBatches: &accountsapi.Batches{Deletions: deletions, Records: &accountsapi.SQLBatches{DB: db}, Accounts: &accountsapi.SQLWriter{DB: game}, Commands: commands, Audit: &audit.SQLStore{DB: db}}, AccountManagement: registrationManagement, Grants: grantService, GrantHistory: records, GrantLookup: &rewardsapi.Lookup{Items: catalogs, Targets: &rewardsapi.SQLTargets{DB: game}}, Audit: &audit.SQLStore{DB: db}, Catalog: catalogs, CatalogAssets: assets, GameCommands: commands, Snapshots: snapshots, Maps: maps, GameGateway: gateway, Config: cfg, Auth: service, Passwords: identityapi.NewSelfPasswordService(&identityapi.SQLRepository{DB: db}, identityapi.Argon2id{}), Sessions: sessions, Logger: logger, Accounts: accountService, Characters: characterService}
 	handler, err := app.Handler()
 	if err != nil {
+		return err
+	}
+	if err = registrationManagement.ApplyRegistrationDefault(ctx, cfg.RegistrationDefaultGroupID); err != nil {
 		return err
 	}
 	server := &http.Server{Addr: cfg.Listen, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 32 << 10}

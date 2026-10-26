@@ -27,11 +27,11 @@ type RegistrationUpdate struct {
 
 func (s *Management) RegistrationSettings(ctx context.Context) (RegistrationSettings, error) {
 	group, err := s.Registration.RegistrationGroup(ctx)
-	return RegistrationSettings{DefaultGroupID: group, Editable: s.RegistrationEditable}, err
+	return RegistrationSettings{DefaultGroupID: group, Editable: s.RegistrationDefaultGroupEditable}, err
 }
 
 func (s *Management) UpdateRegistration(ctx context.Context, input RegistrationUpdate, user identityapi.User, client identityapi.Client) (database.Row, error) {
-	if !s.RegistrationEditable {
+	if !s.RegistrationDefaultGroupEditable {
 		return nil, ErrRegistrationLocked
 	}
 	if !user.Can("settings.manage") {
@@ -78,4 +78,27 @@ func (r *SQLWriter) SetRegistrationGroup(ctx context.Context, expected, group in
 		return nil, err
 	}
 	return database.Row{"default_group_id": group}, nil
+}
+
+// ApplyRegistrationDefault applies an explicitly configured deployment default at
+// startup. An unset value preserves the saved policy. Administrator changes are
+// controlled independently by the edit switch.
+func (s *Management) ApplyRegistrationDefault(ctx context.Context, group *int64) error {
+	if group == nil {
+		return nil
+	}
+	if *group != 0 && *group != GMGroupID {
+		return errors.New("invalid registration group")
+	}
+	current, err := s.Registration.RegistrationGroup(ctx)
+	if err != nil {
+		return err
+	}
+	if current == *group {
+		return nil
+	}
+	_, err = s.mutateEvent(ctx, "registration.group_changed", map[string]any{"previous_group_id": current, "default_group_id": *group, "source": "environment"}, nil, "environment", identityapi.Client{}, func() (database.Row, error) {
+		return s.Registration.SetRegistrationGroup(ctx, current, *group)
+	})
+	return err
 }

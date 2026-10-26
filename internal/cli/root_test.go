@@ -7,7 +7,7 @@ import (
 )
 
 func TestNoArgumentsOnlyPrintsHelpWithoutLoadingConfiguration(t *testing.T) {
-	t.Setenv("SESSION_LIFETIME", "invalid")
+	t.Setenv("HAPPYRO_ADMIN_SESSION_LIFETIME", "invalid")
 	for _, args := range [][]string{nil, {"--no-color"}} {
 		command := NewRoot()
 		command.SetArgs(args)

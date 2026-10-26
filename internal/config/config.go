@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -19,7 +21,7 @@ import (
 type Database struct {
 	Host     string `env:"HOST" envDefault:"127.0.0.1"`
 	Port     uint16 `env:"PORT" envDefault:"3306"`
-	Name     string `env:"DATABASE"`
+	Name     string `env:"NAME"`
 	Username string `env:"USERNAME"`
 	Password string `env:"PASSWORD"`
 }
@@ -36,35 +38,50 @@ func (d Database) DSN() string {
 }
 
 type Config struct {
-	RegistrationSettingsEditable bool          `env:"REGISTRATION_SETTINGS_EDITABLE" envDefault:"false"`
-	AdminPasswordChangeEnabled   bool          `env:"ADMIN_PASSWORD_CHANGE_ENABLED" envDefault:"true"`
-	AdminCSRFOriginCheckEnabled  bool          `env:"ADMIN_CSRF_ORIGIN_CHECK_ENABLED" envDefault:"false"`
-	TimeZone                     string        `env:"APP_TIMEZONE" envDefault:"Asia/Shanghai"`
-	Listen                       string        `env:"HTTP_LISTEN" envDefault:":8080"`
-	PublicURL                    string        `env:"APP_URL" envDefault:"http://localhost:8080"`
-	LogLevel                     string        `env:"LOG_LEVEL" envDefault:"info"`
-	AdminDB                      Database      `envPrefix:"DB_"`
-	GameDB                       Database      `envPrefix:"GAME_DB_"`
-	GameLogDatabase              string        `env:"GAME_LOG_DB_DATABASE" envDefault:"happyro_log"`
-	InitialUsername              string        `env:"ADMIN_INITIAL_USERNAME" envDefault:"admin"`
-	InitialPassword              string        `env:"ADMIN_INITIAL_PASSWORD" envDefault:"admin"`
-	ShowDefaultCredentials       bool          `env:"SHOW_DEFAULT_CREDENTIALS" envDefault:"false"`
-	SessionLifetime              time.Duration `env:"SESSION_LIFETIME" envDefault:"2h"`
-	RememberLifetime             time.Duration `env:"SESSION_REMEMBER_LIFETIME" envDefault:"720h"`
-	SecureCookies                bool          `env:"SESSION_SECURE_COOKIE" envDefault:"false"`
-	TrustedProxies               []string      `env:"HTTP_TRUSTED_PROXIES" envSeparator:","`
-	GameControlURL               string        `env:"GAME_CONTROL_BASE_URL" envDefault:"http://127.0.0.1:8889"`
-	GameControlToken             string        `env:"GAME_CONTROL_TOKEN"`
-	GameControlTimeout           time.Duration `env:"GAME_CONTROL_TIMEOUT" envDefault:"3s"`
-	GameAdminGroups              []int         `env:"GAME_ADMIN_GROUP_IDS" envDefault:"2,3,4,10,99" envSeparator:","`
-	ItemImageRoot                string        `env:"GAME_ITEM_IMAGE_ROOT"`
-	MonsterImageRoot             string        `env:"GAME_MONSTER_IMAGE_ROOT"`
-	MapIndexPath                 string        `env:"GAME_MAP_INDEX_PATH" envDefault:"../happyro-server/db/map_index.txt"`
-	WorldAssetRoot               string        `env:"GAME_WORLD_ASSET_ROOT" envDefault:"resources/game-data/world"`
-	BattleConfigPath             string        `env:"GAME_SERVER_BATTLE_CONFIG_PATH"`
+	RegistrationDefaultGroupID       *int64        `env:"HAPPYRO_REGISTRATION_DEFAULT_GROUP_ID"`
+	RegistrationDefaultGroupEditable bool          `env:"HAPPYRO_REGISTRATION_DEFAULT_GROUP_EDITABLE" envDefault:"true"`
+	AdminPasswordChangeEnabled       bool          `env:"HAPPYRO_ADMIN_PASSWORD_CHANGE_ENABLED" envDefault:"true"`
+	AdminCSRFOriginCheckEnabled      bool          `env:"HAPPYRO_ADMIN_CSRF_ORIGIN_CHECK_ENABLED" envDefault:"false"`
+	TimeZone                         string        `env:"HAPPYRO_TIMEZONE" envDefault:"Asia/Shanghai"`
+	Listen                           string        `env:"HAPPYRO_API_LISTEN_ADDRESS" envDefault:":8080"`
+	PublicURL                        string        `env:"HAPPYRO_ADMIN_PUBLIC_URL" envDefault:"http://localhost:8080"`
+	LogLevel                         string        `env:"HAPPYRO_API_LOG_LEVEL" envDefault:"info"`
+	AdminDB                          Database      `envPrefix:"HAPPYRO_API_ADMIN_DB_"`
+	GameDB                           Database      `envPrefix:"HAPPYRO_API_GAME_DB_"`
+	GameLogDatabase                  string        `env:"HAPPYRO_API_GAME_LOG_DB_NAME" envDefault:"happyro_log"`
+	InitialUsername                  string        `env:"HAPPYRO_ADMIN_INITIAL_USERNAME" envDefault:"admin"`
+	InitialPassword                  string        `env:"HAPPYRO_ADMIN_INITIAL_PASSWORD" envDefault:"admin"`
+	ShowDefaultCredentials           bool          `env:"HAPPYRO_ADMIN_DEFAULT_CREDENTIALS_HINT_ENABLED" envDefault:"false"`
+	SessionLifetime                  time.Duration `env:"HAPPYRO_ADMIN_SESSION_LIFETIME" envDefault:"2h"`
+	RememberLifetime                 time.Duration `env:"HAPPYRO_ADMIN_SESSION_REMEMBER_LIFETIME" envDefault:"720h"`
+	SecureCookies                    bool          `env:"HAPPYRO_ADMIN_SESSION_SECURE_COOKIE_ENABLED" envDefault:"false"`
+	TrustedProxies                   []string      `env:"HAPPYRO_API_TRUSTED_PROXIES" envSeparator:","`
+	GameControlURL                   string        `env:"HAPPYRO_API_GAME_CONTROL_UPSTREAM_URL" envDefault:"http://127.0.0.1:8889"`
+	GameControlToken                 string        `env:"HAPPYRO_GAME_CONTROL_TOKEN"`
+	GameControlTimeout               time.Duration `env:"HAPPYRO_API_GAME_CONTROL_TIMEOUT" envDefault:"3s"`
+	GameAdminGroups                  []int         `env:"HAPPYRO_GAME_ADMIN_GROUP_IDS" envDefault:"2,3,4,10,99" envSeparator:","`
+	ItemImageRoot                    string        `env:"HAPPYRO_API_ITEM_IMAGE_DIR"`
+	MonsterImageRoot                 string        `env:"HAPPYRO_API_MONSTER_IMAGE_DIR"`
+	MapIndexPath                     string        `env:"HAPPYRO_API_MAP_INDEX_PATH" envDefault:"../happyro-server/db/map_index.txt"`
+	WorldAssetRoot                   string        `env:"HAPPYRO_API_WORLD_ASSET_DIR" envDefault:"resources/game-data/world"`
+	BattleConfigPath                 string        `env:"HAPPYRO_API_BATTLE_CONFIG_PATH"`
 }
 
 func Load() (Config, error) {
+	// Keep boolean spelling consistent with the Gateway and game deployment API.
+	// Empty values retain the field default; every nonempty typo is an error.
+	fields := reflect.TypeOf(Config{})
+	for i := 0; i < fields.NumField(); i++ {
+		field := fields.Field(i)
+		if field.Type.Kind() != reflect.Bool {
+			continue
+		}
+		name := field.Tag.Get("env")
+		if value := os.Getenv(name); value != "" && value != "true" && value != "false" {
+			return Config{}, fmt.Errorf("%s must be true or false", name)
+		}
+	}
+
 	c, err := env.ParseAs[Config]()
 	if err != nil {
 		return c, errors.New("invalid environment configuration (check value types)")
@@ -73,13 +90,16 @@ func Load() (Config, error) {
 }
 
 func (c Config) Validate() error {
+	if c.RegistrationDefaultGroupID != nil && *c.RegistrationDefaultGroupID != 0 && *c.RegistrationDefaultGroupID != 99 {
+		return errors.New("HAPPYRO_REGISTRATION_DEFAULT_GROUP_ID must be 0 or 99")
+	}
 	if c.TimeZone == "" || c.TimeZone == "Local" {
-		return errors.New("APP_TIMEZONE must be an explicit IANA time zone")
+		return errors.New("HAPPYRO_TIMEZONE must be an explicit IANA time zone")
 	}
 	if _, err := time.LoadLocation(c.TimeZone); err != nil {
-		return errors.New("APP_TIMEZONE must be a valid IANA time zone")
+		return errors.New("HAPPYRO_TIMEZONE must be a valid IANA time zone")
 	}
-	for name, raw := range map[string]string{"APP_URL": c.PublicURL, "GAME_CONTROL_BASE_URL": c.GameControlURL} {
+	for name, raw := range map[string]string{"HAPPYRO_ADMIN_PUBLIC_URL": c.PublicURL, "HAPPYRO_API_GAME_CONTROL_UPSTREAM_URL": c.GameControlURL} {
 		u, err := url.Parse(raw)
 		if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 			return fmt.Errorf("%s must be an absolute HTTP(S) URL without credentials, query or fragment", name)
@@ -99,7 +119,7 @@ func (c Config) DefaultCredentialHint() bool {
 // account administration commands do not publish game configuration files.
 func (c Config) ValidateServer() error {
 	if strings.TrimSpace(c.BattleConfigPath) == "" || !filepath.IsAbs(c.BattleConfigPath) {
-		return errors.New("GAME_SERVER_BATTLE_CONFIG_PATH must be an absolute configuration file path")
+		return errors.New("HAPPYRO_API_BATTLE_CONFIG_PATH must be an absolute configuration file path")
 	}
 	return nil
 }

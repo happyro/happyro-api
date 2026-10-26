@@ -10,7 +10,7 @@ import (
 )
 
 func TestCatalogExportUsesSharedRulesWithoutDatabaseConfiguration(t *testing.T) {
-	t.Setenv("SESSION_LIFETIME", "invalid")
+	t.Setenv("HAPPYRO_ADMIN_SESSION_LIFETIME", "invalid")
 	dir := t.TempDir()
 	source := filepath.Join(dir, "source.json")
 	output := filepath.Join(dir, "output.json")
