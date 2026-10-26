@@ -154,7 +154,7 @@ func TestMailRollsBackAttachmentsAndCanRecoverAfterAdminWriteFailure(t *testing.
 		t.Fatal(err)
 	}
 	countRows(t, game, "mail", 1)
-	history, err := (&rewardsapi.SQLRecords{DB: admin}).History(ctx, database.Pagination{Page: 1, Size: 20})
+	history, err := (&rewardsapi.SQLRecords{DB: admin}).History(ctx, database.Pagination{Page: 1, Size: 20}, "")
 	if err != nil || history.Meta.Total != 1 || history.Data[0]["status"] != "sent" {
 		t.Fatalf("history %+v %v", history, err)
 	}

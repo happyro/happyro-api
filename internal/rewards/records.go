@@ -94,11 +94,20 @@ func (r *SQLRecords) Sent(ctx context.Context, record MailRecord, mailID int64, 
 }
 
 type RecordHistory interface {
-	History(context.Context, database.Pagination) (audit.History, error)
+	History(context.Context, database.Pagination, string) (audit.History, error)
 }
 
-func (r *SQLRecords) History(ctx context.Context, p database.Pagination) (audit.History, error) {
-	page, err := database.Paginate(ctx, r.DB, "g.id,g.idempotency_key,g.item_id,g.char_id,g.amount,g.title,g.status,g.mail_id,g.error,g.requested_by,DATE_FORMAT(g.created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS created_at,DATE_FORMAT(g.updated_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS updated_at,u.name AS actor_name,u.username AS actor_username", "mail_grants g LEFT JOIN users u ON u.id=g.requested_by", "", "g.id DESC", nil, p)
+func (r *SQLRecords) History(ctx context.Context, p database.Pagination, kind string) (audit.History, error) {
+	if !p.Valid() || !ValidHistoryKind(kind) {
+		return audit.History{}, errors.New("invalid grant history query")
+	}
+	where := ""
+	var args []any
+	if kind != "" {
+		where = " WHERE g.kind=?"
+		args = []any{kind}
+	}
+	page, err := database.Paginate(ctx, r.DB, "g.*,DATE_FORMAT(g.created_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS created_at,DATE_FORMAT(g.updated_at,'%Y-%m-%dT%H:%i:%s.%fZ') AS updated_at,u.name AS actor_name,u.username AS actor_username", "("+grantHistoryRows+") g LEFT JOIN users u ON u.id=g.requested_by", where, "g.created_at DESC,g.id DESC", args, p)
 	if err != nil {
 		return audit.History{}, err
 	}
@@ -112,3 +121,14 @@ func (r *SQLRecords) History(ctx context.Context, p database.Pagination) (audit.
 	}
 	return audit.History{Data: page.Data, Meta: audit.Meta{Current: p.Page, Last: max(1, (page.Total+int64(p.Size)-1)/int64(p.Size)), Total: page.Total}}, nil
 }
+
+func ValidHistoryKind(kind string) bool {
+	return kind == "" || kind == "mail" || kind == "inventory" || kind == "zeny"
+}
+
+const grantHistoryRows = `SELECT CONCAT('mail:',id) AS id,'mail' AS kind,idempotency_key,item_id,char_id,amount,title,status,mail_id,error,requested_by,NULL AS requested_game_account_id,created_at,updated_at FROM mail_grants
+ UNION ALL
+ SELECT CONCAT('command:',id),IF(type='character.inventory.item_grant','inventory','zeny'),idempotency_key,
+ CAST(JSON_UNQUOTE(JSON_EXTRACT(payload,'$.item_id')) AS UNSIGNED),CAST(target_id AS UNSIGNED),
+ CAST(JSON_UNQUOTE(JSON_EXTRACT(payload,'$.amount')) AS UNSIGNED),NULL,status,NULL,error_message,requested_by,requested_game_account_id,created_at,updated_at
+ FROM game_server_commands WHERE type IN ('character.inventory.item_grant','character.currency.zeny_grant')`

@@ -70,11 +70,11 @@ func (s *Handler) grantHistory(c *gin.Context) {
 	page, e1 := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, e2 := strconv.Atoi(c.DefaultQuery("per_page", "20"))
 	p := database.Pagination{Page: page, Size: size}
-	if e1 != nil || e2 != nil || !p.Valid() {
+	if e1 != nil || e2 != nil || !p.Valid() || !rewardsapi.ValidHistoryKind(c.Query("kind")) {
 		s.Fail(c, 422, "validation_failed", "分页参数无效。")
 		return
 	}
-	history, err := s.GrantHistory.History(c.Request.Context(), p)
+	history, err := s.GrantHistory.History(c.Request.Context(), p, c.Query("kind"))
 	if err != nil {
 		s.InternalError(c, err)
 		return

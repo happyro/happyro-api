@@ -15,21 +15,24 @@ import (
 var ErrBusy = errors.New("另一项游戏设置修改尚未完成，请先确认其结果。")
 
 type Revision struct {
-	MapInstance *string         `json:"-" db:"map_instance"`
-	MapRevision *uint64         `json:"-" db:"map_revision"`
-	Attempt     uint32          `json:"-" db:"command_attempt"`
-	ID          string          `json:"id" db:"id"`
-	Key         string          `json:"-" db:"idempotency_key"`
-	Hash        string          `json:"-" db:"request_hash"`
-	AdminID     *int64          `json:"requested_by" db:"requested_by"`
-	GameID      *int64          `json:"requested_game_account_id" db:"requested_game_account_id"`
-	Changes     json.RawMessage `json:"changes" db:"changes"`
-	Previous    string          `json:"-" db:"previous_content"`
-	Desired     string          `json:"-" db:"desired_content"`
-	Status      string          `json:"status" db:"status"`
-	ErrorCode   *string         `json:"error_code" db:"error_code"`
-	Created     time.Time       `json:"created_at" db:"created_at"`
-	Updated     time.Time       `json:"updated_at" db:"updated_at"`
+	Category        string          `json:"category" db:"category"`
+	ActorName       *string         `json:"actor_name,omitempty" db:"actor_name"`
+	PreviousChanges json.RawMessage `json:"previous_changes,omitempty" db:"previous_changes"`
+	MapInstance     *string         `json:"-" db:"map_instance"`
+	MapRevision     *uint64         `json:"-" db:"map_revision"`
+	Attempt         uint32          `json:"-" db:"command_attempt"`
+	ID              string          `json:"id" db:"id"`
+	Key             string          `json:"-" db:"idempotency_key"`
+	Hash            string          `json:"-" db:"request_hash"`
+	AdminID         *int64          `json:"requested_by" db:"requested_by"`
+	GameID          *int64          `json:"requested_game_account_id" db:"requested_game_account_id"`
+	Changes         json.RawMessage `json:"changes" db:"changes"`
+	Previous        string          `json:"-" db:"previous_content"`
+	Desired         string          `json:"-" db:"desired_content"`
+	Status          string          `json:"status" db:"status"`
+	ErrorCode       *string         `json:"error_code" db:"error_code"`
+	Created         time.Time       `json:"created_at" db:"created_at"`
+	Updated         time.Time       `json:"updated_at" db:"updated_at"`
 }
 
 const revisionColumns = "map_instance,map_revision,command_attempt,id,idempotency_key,request_hash,requested_by,requested_game_account_id,changes,previous_content,desired_content,status,error_code,created_at,updated_at"
@@ -152,17 +155,32 @@ type History struct {
 	Meta        map[string]int64      `json:"meta"`
 }
 
+// One row per registration intent, including interrupted or unconfirmed writes.
+// Registration audit entries are informational and never resumable revisions.
+const historyRows = `SELECT r.id,'battle' AS category,r.requested_by,r.requested_game_account_id,
+ r.changes,JSON_OBJECT() AS previous_changes,r.status,r.error_code,r.created_at,r.updated_at,u.username AS actor_name
+ FROM settings_revisions r LEFT JOIN users u ON u.id=r.requested_by
+ UNION ALL
+ SELECT CONCAT('registration:',a.id),'registration',a.actor_id,NULL,
+ JSON_OBJECT('default_group_id',JSON_EXTRACT(a.metadata,'$.default_group_id')),
+ JSON_OBJECT('default_group_id',JSON_EXTRACT(a.metadata,'$.previous_group_id')),
+ IF(result.action='registration.group_changed','applied','uncertain'),NULL,a.created_at,
+ COALESCE(result.created_at,a.created_at),a.username
+ FROM audit_logs a LEFT JOIN audit_logs result
+ ON result.operation_key=CONCAT(LEFT(a.operation_key,LENGTH(a.operation_key)-10),':result')
+ WHERE a.action='registration.group_changed.requested'`
+
 func (r *SQLRevisions) History(ctx context.Context, page, size int) (History, error) {
 	result := History{Data: []Revision{}, Definitions: Definitions(false)}
 	if page < 1 || page > 1000000 || size < 1 || size > 100 {
 		return result, errors.New("invalid revision pagination")
 	}
 	var total int64
-	if err := r.DB.GetContext(ctx, &total, "SELECT COUNT(*) FROM settings_revisions"); err != nil {
+	if err := r.DB.GetContext(ctx, &total, "SELECT COUNT(*) FROM ("+historyRows+") history"); err != nil {
 		return result, err
 	}
 	// Do not read configuration snapshots or request hashes for a public history view.
-	err := r.DB.SelectContext(ctx, &result.Data, "SELECT id,requested_by,requested_game_account_id,changes,status,error_code,created_at,updated_at FROM settings_revisions ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?", size, (page-1)*size)
+	err := r.DB.SelectContext(ctx, &result.Data, "SELECT * FROM ("+historyRows+") history ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?", size, (page-1)*size)
 	last := (total + int64(size) - 1) / int64(size)
 	if last < 1 {
 		last = 1
