@@ -18,6 +18,7 @@ func CheckRuntime(ctx context.Context, db *sqlx.DB) error {
 		return err
 	}
 	for _, query := range []string{
+		"SELECT id,default_group_id FROM happyro_registration_settings LIMIT 0",
 		"SELECT worker_name,heartbeat_at FROM happyro_admin_workers LIMIT 0",
 		"SELECT account_id,requested_by,requested_username,account_name,status,error_code,total_characters,deleted_characters,created_at,updated_at,completed_at FROM happyro_admin_account_deletions LIMIT 0",
 		"SELECT idempotency_key,request_hash,mail_id,created_at FROM happyro_admin_mail_receipts LIMIT 0",

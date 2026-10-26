@@ -34,7 +34,14 @@ func (s *Service) Characters(ctx context.Context, q Query) (database.Page, error
 	if !q.Pagination.Valid() || !validFilter(q.Username) || !validFilter(q.Name) || !validFilter(q.Search) {
 		return database.Page{}, ErrFilter
 	}
-	return s.Reader.Characters(ctx, q)
+	page, err := s.Reader.Characters(ctx, q)
+	if err != nil {
+		return database.Page{}, err
+	}
+	for _, character := range page.Data {
+		s.addMapName(character)
+	}
+	return page, nil
 }
 func (s *Service) Character(ctx context.Context, id int64) (database.Row, error) {
 	if id <= 0 {
@@ -44,11 +51,15 @@ func (s *Service) Character(ctx context.Context, id int64) (database.Row, error)
 	if err != nil {
 		return nil, err
 	}
+	s.addMapName(character)
+	return character, nil
+}
+
+func (s *Service) addMapName(character database.Row) {
 	character["last_map_name"] = nil
 	if s.Maps != nil {
 		if name, ok := character["last_map"].(string); ok {
 			character["last_map_name"] = s.Maps.MapName(name)
 		}
 	}
-	return character, nil
 }

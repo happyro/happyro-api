@@ -43,6 +43,8 @@ func (s *Handler) Register(router *gin.Engine) {
 	settings := router.Group("/api/settings", s.requireUser, s.permission("settings.manage"))
 	settings.POST("/game-settings/revisions/:revisionId/resume", s.resumeSettings)
 	settings.PUT("/game-settings", s.applySettings)
+	settings.GET("/registration", s.readRegistrationSettings)
+	settings.PUT("/registration", s.updateRegistrationSettings)
 	settings.GET("/game-settings/history", s.gameSettingsHistory)
 	settings.GET("/game-settings", s.readSettings)
 	settings.GET("/game-data", s.catalogVersions)

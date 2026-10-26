@@ -44,9 +44,11 @@ type AccountWriter interface {
 	Password(context.Context, int64, string) (database.Row, error)
 }
 type Management struct {
-	GM       GMWriter
-	Accounts AccountWriter
-	Audit    audit.Writer
+	Registration         RegistrationStore
+	RegistrationEditable bool
+	GM                   GMWriter
+	Accounts             AccountWriter
+	Audit                audit.Writer
 }
 
 // Match HappyRO client RegistrationValidation.js and PACKETVER=20211103.

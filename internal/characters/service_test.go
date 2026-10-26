@@ -12,14 +12,59 @@ import (
 type queryReader struct {
 	received Query
 	calls    int
+	page     database.Page
+	err      error
 }
 
 func (r *queryReader) Characters(_ context.Context, q Query) (database.Page, error) {
 	r.received = q
 	r.calls++
-	return database.Page{}, nil
+	return r.page, r.err
 }
 func (*queryReader) Character(context.Context, int64) (database.Row, error) { return nil, nil }
+
+type mapNames map[string]string
+
+func (names mapNames) MapName(code string) *string {
+	name, ok := names[code]
+	if !ok {
+		return nil
+	}
+	return &name
+}
+
+func TestCharactersResolveMapNamesWithoutLosingCodesOrPagination(t *testing.T) {
+	reader := &queryReader{page: database.Page{
+		Data:  []database.Row{{"last_map": "new_1-1"}, {"last_map": "wolfvill"}, {"last_map": "unlisted"}},
+		Total: 43, Current: 2, PageSize: 20,
+	}}
+	service := &Service{Reader: reader, Maps: mapNames{"new_1-1": "初心者修炼场", "wolfvill": "灰狼村"}}
+	page, err := service.Characters(context.Background(), Query{Pagination: database.Pagination{Page: 2, Size: 20}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 43 || page.Current != 2 || page.PageSize != 20 || len(page.Data) != 3 {
+		t.Fatalf("pagination changed: %+v", page)
+	}
+	for i, want := range []string{"初心者修炼场", "灰狼村"} {
+		name, ok := page.Data[i]["last_map_name"].(*string)
+		if !ok || name == nil || *name != want {
+			t.Fatalf("map name: %+v", page.Data[i])
+		}
+	}
+	if name := page.Data[2]["last_map_name"].(*string); name != nil || page.Data[2]["last_map"] != "unlisted" {
+		t.Fatalf("unknown map lost: %+v", page.Data[2])
+	}
+}
+
+func TestCharactersPropagateReadFailure(t *testing.T) {
+	want := errors.New("read failed")
+	service := &Service{Reader: &queryReader{err: want}}
+	_, err := service.Characters(context.Background(), Query{Pagination: database.Pagination{Page: 1, Size: 20}})
+	if !errors.Is(err, want) {
+		t.Fatalf("read error lost: %v", err)
+	}
+}
 
 func TestCharacterFilters(t *testing.T) {
 	reader := &queryReader{}

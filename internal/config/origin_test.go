@@ -44,3 +44,22 @@ func TestAdminPasswordChangeEnvironment(t *testing.T) {
 		}
 	}
 }
+
+func TestRegistrationSettingsEnvironment(t *testing.T) {
+	for _, tc := range []struct {
+		value string
+		want  bool
+	}{{"", false}, {"false", false}, {"true", true}} {
+		values := map[string]string{}
+		if tc.value != "" {
+			values["REGISTRATION_SETTINGS_EDITABLE"] = tc.value
+		}
+		var c Config
+		if err := env.ParseWithOptions(&c, env.Options{Environment: values}); err != nil {
+			t.Fatal(err)
+		}
+		if c.RegistrationSettingsEditable != tc.want {
+			t.Fatalf("got %v", c.RegistrationSettingsEditable)
+		}
+	}
+}

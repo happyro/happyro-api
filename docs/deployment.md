@@ -89,3 +89,11 @@ python3 tools/operations/native_api.py prepare --workspace . \
 后台密码登录按「规范化用户名 + 来源 IP」计数：固定 60 秒窗口内允许 5 次尝试，第 6 次起返回 HTTP 429 和 `Retry-After`；登录成功清除对应计数。计数保存在管理库 `login_attempts`，使用数据库时钟和事务更新，并发请求与多个 API 实例共用限制。失败及限流写入审计日志。
 
 当前没有跨 IP 的账号总限流或全局 IP 总限流，不应将其视为完整的分布式爆破防护。反向代理部署需按实际代理配置 `HTTP_TRUSTED_PROXIES`，确保来源 IP 识别正确。此处描述的是后台账号登录，游戏账号认证使用独立流程。
+
+## 新注册账号默认权限组
+
+后台「系统设置 → 游戏设置 → 账号注册」可选择普通玩家（0）或 GM（99）。默认普通玩家，不修改已有账号；仅游戏客户端自主注册使用此策略，后台手动创建账号沿用普通玩家。
+
+`REGISTRATION_SETTINGS_EDITABLE` 默认 `false`：页面禁用选择和保存，API 同时拒绝 PUT 请求。需要修改策略时，在 API 启动环境设为 `true` 并重启，保存所需权限组后恢复为 `false` 并重启 API；锁定不改变已保存的权限组。Docker 修改 `.env` 后重新创建 API 容器，而非仅 restart。
+
+策略持久化在游戏库 `happyro_registration_settings`，由登录服每次注册读取，避免登录服依赖管理库连接。表结构和初始普通玩家策略由 happyro-server 的 `sql-files/happyro-admin.sql` 初始化；升级时先由具有 DDL 权限的操作账号执行该 SQL，再更新登录服和 API。重复执行不会覆盖已有策略。API 运行时只检查结构，不执行 DDL；登录服读取失败时拒绝注册，不静默降级。该变更不涉及游戏封包。
