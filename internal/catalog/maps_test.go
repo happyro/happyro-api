@@ -1,6 +1,9 @@
 package catalog
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -113,6 +116,57 @@ func TestResourceOnlyMapsStayAvailableToAdminButNotPlayers(t *testing.T) {
 	for _, row := range page.Data {
 		if !row.Supported {
 			t.Fatalf("resource support changed: %+v", row)
+		}
+	}
+}
+
+func TestNonGameplayMapsAreHiddenButRemainInspectable(t *testing.T) {
+	data, err := os.ReadFile("../../resources/game-data/world/map-catalog.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var catalog struct {
+		Entries []MapEntry `json:"entries"`
+	}
+	if err = json.Unmarshal(data, &catalog); err != nil {
+		t.Fatal(err)
+	}
+	var index strings.Builder
+	for _, entry := range catalog.Entries {
+		fmt.Fprintf(&index, "%s %d\n", entry.Map, entry.ID)
+	}
+	maps, err := LoadMaps(os.DirFS("../../resources/game-data/world"), strings.NewReader(index.String()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"new_zone01", "new_zone02", "new_zone03", "new_zone04", "alde_tt02", "ordeal_a00", "ordeal_a02", "job_sword1", "quiz_01", "que_job02", "que_job03"} {
+		for _, channels := range []bool{false, true} {
+			page, err := maps.Maps(MapQuery{GameOnly: true, ChannelsEnabled: channels, Map: id, Pagination: database.Pagination{Page: 1, Size: 20}})
+			if err != nil || page.Total != 0 {
+				t.Fatalf("resource map visible: %s %+v %v", id, page, err)
+			}
+		}
+		page, err := maps.Maps(MapQuery{Map: id, Pagination: database.Pagination{Page: 1, Size: 20}})
+		if err != nil || page.Total != 1 || !page.Data[0].PlayerHidden || !page.Data[0].Supported {
+			t.Fatalf("admin resource missing: %s %+v %v", id, page, err)
+		}
+		if maps.MapName(id) == nil {
+			t.Fatalf("position label lost: %s", id)
+		}
+	}
+	for _, playable := range []string{"new_1-1", "new_1-2", "new_1-3", "new_1-4", "turbo_n_1", "ordeal_1-1", "ordeal_1-2", "airport", "lhz_airport", "y_airport"} {
+		page, err := maps.Maps(MapQuery{GameOnly: true, Map: playable, Pagination: database.Pagination{Page: 1, Size: 20}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, row := range page.Data {
+			if row.Map == playable && !row.PlayerHidden {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatalf("playable map lost: %s %+v", playable, page)
 		}
 	}
 }

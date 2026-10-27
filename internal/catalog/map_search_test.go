@@ -49,12 +49,58 @@ func TestMapSearchUsesDisplayedNamesRankingAndChannels(t *testing.T) {
 			}
 			seen[row.Map] = true
 		}
-		for _, query := range []string{"卢恩·米德加兹王国 首都普隆德拉", "PRONTERA", "首都"} {
+		for _, query := range []string{"卢恩·米德加兹王国 首都普隆德拉", "首都"} {
 			q.Search = query
 			page, err = maps.Maps(q)
 			if err != nil || page.Total != 0 {
 				t.Fatalf("non-display search %q: %+v %v", query, page, err)
 			}
+		}
+	}
+}
+
+func TestMapCodeSearchRanksAndPreservesVisibility(t *testing.T) {
+	assets := fstest.MapFS{
+		"map-catalog.json":              {Data: []byte(`{"entries":[{"map":"town","supported":true},{"map":"town_more","supported":true},{"map":"x_town","supported":true},{"map":"town_hidden","supported":true,"player_hidden":true},{"map":"town_channel","supported":true,"channel":2}]}`)},
+		"map-names.zh-CN.json":          {Data: []byte(`{"town":"丙","town_more":"乙","x_town":"甲"}`)},
+		"map-search-aliases.zh-CN.json": {Data: []byte(`{}`)},
+		"map-order.json":                {Data: []byte(`{"common":["x_town"]}`)},
+	}
+	maps, err := LoadMaps(assets, strings.NewReader("town 1\ntown_more 2\nx_town 3\ntown_hidden 4\ntown_channel 5\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, adventure := range []bool{false, true} {
+		q := MapQuery{GameOnly: true, AdventureOrder: adventure, Search: " TOWN ", Pagination: database.Pagination{Page: 1, Size: 20}}
+		page, err := maps.Maps(q)
+		if err != nil || page.Total != 3 {
+			t.Fatalf("search: %+v %v", page, err)
+		}
+		for i, id := range []string{"town", "town_more", "x_town"} {
+			if page.Data[i].Map != id {
+				t.Fatalf("ranking: %+v", page)
+			}
+		}
+		q.Search = "TOWN_HIDDEN"
+		page, err = maps.Maps(q)
+		if err != nil || page.Total != 0 {
+			t.Fatalf("hidden: %+v %v", page, err)
+		}
+		q.GameOnly = false
+		page, err = maps.Maps(q)
+		if err != nil || page.Total != 1 || !page.Data[0].PlayerHidden {
+			t.Fatalf("all maps: %+v %v", page, err)
+		}
+		q.GameOnly = true
+		q.Search = "TOWN_CHANNEL"
+		page, err = maps.Maps(q)
+		if err != nil || page.Total != 0 {
+			t.Fatalf("channel off: %+v %v", page, err)
+		}
+		q.ChannelsEnabled = true
+		page, err = maps.Maps(q)
+		if err != nil || page.Total != 1 {
+			t.Fatalf("channel on: %+v %v", page, err)
 		}
 	}
 }

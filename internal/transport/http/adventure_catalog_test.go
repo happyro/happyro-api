@@ -111,12 +111,12 @@ func (g *adventureMapGateway) BattleConfig(context.Context) (map[string]int64, e
 }
 func TestAdventureMapsUseLiveChannelsAndGameOnlyScope(t *testing.T) {
 	assets := fstest.MapFS{
-		"map-catalog.json":              {Data: []byte(`{"version":"test","entries":[{"map":"town","supported":true,"channel":1,"canonical_map":"town"},{"map":"town2","supported":true,"channel":2,"canonical_map":"town"},{"map":"field","supported":true}]}`)},
+		"map-catalog.json":              {Data: []byte(`{"version":"test","entries":[{"map":"town","supported":true,"channel":1,"canonical_map":"town"},{"map":"town2","supported":true,"channel":2,"canonical_map":"town"},{"map":"field","supported":true},{"map":"hidden","supported":true,"player_hidden":true}]}`)},
 		"map-names.zh-CN.json":          {Data: []byte(`{}`)},
 		"map-search-aliases.zh-CN.json": {Data: []byte(`{}`)},
 		"map-order.json":                {Data: []byte(`{"common":["town"]}`)},
 	}
-	maps, err := catalog.LoadMaps(assets, strings.NewReader("town 1\ntown2 2\nfield 3\nunused 4\n"))
+	maps, err := catalog.LoadMaps(assets, strings.NewReader("town 1\ntown2 2\nfield 3\nunused 4\nhidden 5\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,6 +145,13 @@ func TestAdventureMapsUseLiveChannelsAndGameOnlyScope(t *testing.T) {
 		{0, "?scope=all&currentMap=field", 2, "field"},
 		{1, "?onMap=town2", 1, "town2"},
 		{0, "?onMap=town2", 1, "town"},
+		{0, "?scope=all&currentMap=hidden", 2, "town"},
+		{1, "?scope=all&currentMap=hidden", 3, "town"},
+		{0, "?onMap=hidden", 0, ""},
+		{0, "?query=TOWN", 1, "town"},
+		{1, "?query=TOWN2", 1, "town2"},
+		{1, "?scope=all&query=HIDDEN", 0, ""},
+		{1, "?scope=all&onMap=hidden", 0, ""},
 	} {
 		gateway.enabled = scenario.enabled
 		response := get(scenario.query)
@@ -153,10 +160,30 @@ func TestAdventureMapsUseLiveChannelsAndGameOnlyScope(t *testing.T) {
 		if err := json.Unmarshal(response.Body.Bytes(), &page); err != nil {
 			t.Fatal(err)
 		}
-		if page.Total != scenario.total || len(page.Data) == 0 || page.Data[0].Map != scenario.first {
+		if page.Total != scenario.total || len(page.Data) != scenario.total || (scenario.total > 0 && page.Data[0].Map != scenario.first) {
 			t.Fatalf("map filtering: %+v", page)
 		}
 	}
+	b.login(t)
+	for _, scenario := range []struct {
+		query string
+		total int
+	}{
+		{"?scope=game&query=HIDDEN", 0},
+		{"?scope=all&query=HIDDEN", 1},
+		{"?scope=all&query=TOWN2", 1},
+	} {
+		response := b.request("GET", "/api/game-data/maps"+scenario.query, "", "", false)
+		expectStatus(t, response, 200)
+		var page catalog.MapPage
+		if err := json.Unmarshal(response.Body.Bytes(), &page); err != nil {
+			t.Fatal(err)
+		}
+		if page.Total != scenario.total {
+			t.Fatalf("admin search %s: %+v", scenario.query, page)
+		}
+	}
+	expectStatus(t, b.request("GET", "/api/game-data/maps?query="+strings.Repeat("a", 101), "", "", false), 422)
 	expectStatus(t, get("?perPage=51"), 422)
 	expectStatus(t, get("?query="+strings.Repeat("a", 101)), 422)
 }

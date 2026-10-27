@@ -16,7 +16,7 @@ func (s *Handler) maps(c *gin.Context) {
 		s.Fail(c, 422, "validation_failed", "地图范围必须是 game 或 all。")
 		return
 	}
-	if len(c.Query("map")) > 64 || len([]rune(c.Query("name_zh_cn"))) > 100 {
+	if len([]rune(c.Query("query"))) > 100 {
 		s.Fail(c, 422, "validation_failed", "地图查询条件过长。")
 		return
 	}
@@ -29,7 +29,7 @@ func (s *Handler) maps(c *gin.Context) {
 		}
 		channels = values["navigation_map_channels_enabled"] != 0
 	}
-	page, err := s.Maps.Maps(catalog.MapQuery{GameOnly: scope == "game", ChannelsEnabled: channels, Map: c.Query("map"), Name: c.Query("name_zh_cn"), Pagination: pagination})
+	page, err := s.Maps.Maps(catalog.MapQuery{GameOnly: scope == "game", ChannelsEnabled: channels, Search: c.Query("query"), Pagination: pagination})
 	if err != nil {
 		s.InternalError(c, err)
 		return

@@ -33,13 +33,14 @@ type MapEntry struct {
 	ImageKind    *string `json:"image_kind"`
 }
 type Map struct {
-	ID        int     `json:"id"`
-	Map       string  `json:"map"`
-	Name      *string `json:"name_zh_cn"`
-	Supported bool    `json:"supported"`
-	Channel   *int    `json:"channel"`
-	ImageKind *string `json:"image_kind"`
-	Image     *string `json:"image"`
+	PlayerHidden bool    `json:"player_hidden"`
+	ID           int     `json:"id"`
+	Map          string  `json:"map"`
+	Name         *string `json:"name_zh_cn"`
+	Supported    bool    `json:"supported"`
+	Channel      *int    `json:"channel"`
+	ImageKind    *string `json:"image_kind"`
+	Image        *string `json:"image"`
 }
 type MapQuery struct {
 	GameOnly, ChannelsEnabled, AdventureOrder bool
@@ -106,7 +107,7 @@ func LoadMaps(assets fs.FS, index io.Reader) (*Maps, error) {
 			lastID = value
 		}
 		entry := catalog.entries[name]
-		row := Map{ID: lastID, Map: name, Name: catalog.MapName(name), Supported: entry.Supported, Channel: entry.Channel, ImageKind: entry.ImageKind}
+		row := Map{PlayerHidden: entry.PlayerHidden, ID: lastID, Map: name, Name: catalog.MapName(name), Supported: entry.Supported, Channel: entry.Channel, ImageKind: entry.ImageKind}
 		imagePath, _ := catalog.MapImage(name)
 		if _, err := fs.Stat(assets, imagePath); err == nil {
 			url := "/api/game-data/maps/" + name + "/image?v=" + data.Version
